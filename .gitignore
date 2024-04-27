@@ -1,0 +1,16 @@
+dist/
+sdist/
+wheels/
+*.egg-info/
+__pycache__
+bigquery_jupyter_plugin/labextension
+.coverage
+
+# Used on OSX to track metadata about folders
+.DS_Store
+
+# Used by some text editors for modified files
+*~
+
+# Version file is handled by hatchling
+bigquery_jupyter_plugin/_version.py
