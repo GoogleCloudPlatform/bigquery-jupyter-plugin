@@ -37,14 +37,14 @@ Clean up all the development files from your local repo before building the pack
 git clean -dfX
 ```
 
-To create a Python source package (`.tar.gz`) and the binary package (`.whl`) in the `dist/` directory, do:
+To create a Python source package (`.tar.gz`) in the `dist/` directory, do:
 
 ```bash
-python -m build
+python -m build --sdist
 ```
 
 Then to upload the package to PyPI, do:
 
 ```bash
-python -m twine upload dist/*
+python -m twine upload dist/bigquery_jupyter_plugin-*.tar.gz
 ```
