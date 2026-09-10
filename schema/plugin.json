@@ -1,0 +1,7 @@
+{
+  "title": "BigQuery Jupyter Plugin",
+  "description": "Settings for the BigQuery JupyterLab plugin.",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}
