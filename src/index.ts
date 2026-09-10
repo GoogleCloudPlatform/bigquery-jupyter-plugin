@@ -16,6 +16,12 @@ import { requestAPI } from './handler';
 
 const PLUGIN_ID = 'bigquery-jupyter-plugin:plugin';
 
+interface IPluginConfig {
+  principal: string | null;
+  project: string | null;
+  credential_type?: string;
+}
+
 const plugin: JupyterFrontEndPlugin<void> = {
   id: PLUGIN_ID,
   description: 'BigQuery JupyterLab 4 plugin',
@@ -31,6 +37,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
         error
       );
       Notification.error('BigQuery plugin backend is unreachable.');
+      return;
+    }
+    try {
+      const config = await requestAPI<IPluginConfig>('config');
+      console.log(
+        `[bigquery-jupyter-plugin] identity: ${config.principal} (project: ${config.project})`
+      );
+    } catch (error) {
+      console.error('[bigquery-jupyter-plugin] failed to load config:', error);
     }
   }
 };

@@ -6,21 +6,40 @@
 
 import json
 
+import tornado
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
-import tornado
+from tornado.ioloop import IOLoop
+
+from bigquery_jupyter_plugin.services import credentials
 
 
 class HealthCheckHandler(APIHandler):
-    """APIHandler to report whether the BigQuery Jupyter Plugin is healthy."""
+    """Report whether the BigQuery Jupyter Plugin server extension is healthy."""
+
     @tornado.web.authenticated
     def get(self):
         self.finish("ok")
 
 
+class ConfigHandler(APIHandler):
+    """Return the active principal and default project (Application Default Creds)."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        try:
+            identity = await IOLoop.current().run_in_executor(
+                None, credentials.get_identity
+            )
+            self.finish(json.dumps(identity))
+        except Exception as e:  # noqa: BLE001 - surface a clean error to the client
+            self.log.exception("Error resolving identity")
+            self.set_status(500)
+            self.finish(json.dumps({"error": str(e)}))
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
-
     base_url = web_app.settings["base_url"]
     application_url = "bigquery-jupyter-plugin"
 
@@ -29,6 +48,7 @@ def setup_handlers(web_app):
 
     handlers_map = {
         "health": HealthCheckHandler,
+        "config": ConfigHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)
