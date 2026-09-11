@@ -23,6 +23,7 @@ import {
   listTables
 } from './api';
 import { MenuProvider, useMenu } from './ContextMenu';
+import { OpenTable, TableActionsProvider, useOpenTable } from './TableActions';
 
 // While a dataset filter is active we auto-load pages so the filter is
 // comprehensive; cap it so a project with a huge number of datasets can't
@@ -63,12 +64,25 @@ function TableNode({
   table: { id: string; type: string };
 }): JSX.Element {
   const openMenu = useMenu();
+  const openTable = useOpenTable();
   const fqId = `${projectId}.${datasetId}.${table.id}`;
+  const open = (): void =>
+    openTable({
+      projectId,
+      datasetId,
+      tableId: table.id,
+      tableType: table.type
+    });
   return (
     <li
       className="bq-node bq-leaf"
+      title="Double-click to open details"
+      onDoubleClick={open}
       onContextMenu={e =>
-        openMenu(e, [{ label: 'Copy table ID', onClick: () => copyId(fqId) }])
+        openMenu(e, [
+          { label: 'Open details', onClick: open },
+          { label: 'Copy table ID', onClick: () => copyId(fqId) }
+        ])
       }
     >
       <span className="bq-label">{table.id}</span>
@@ -381,13 +395,17 @@ function ExplorerTreeInner({
 }
 
 export function ExplorerTree({
-  settings
+  settings,
+  onOpenTable
 }: {
   settings: ISettingRegistry.ISettings | null;
+  onOpenTable: OpenTable;
 }): JSX.Element {
   return (
     <MenuProvider>
-      <ExplorerTreeInner settings={settings} />
+      <TableActionsProvider open={onOpenTable}>
+        <ExplorerTreeInner settings={settings} />
+      </TableActionsProvider>
     </MenuProvider>
   );
 }

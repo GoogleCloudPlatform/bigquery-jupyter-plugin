@@ -8,37 +8,28 @@
  */
 
 import { ReactWidget } from '@jupyterlab/apputils';
-import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { ExplorerTree } from './ExplorerTree';
-import { OpenTable } from './TableActions';
+import { ITableRef } from '../explorer/TableActions';
+import { TableDetails } from './TableDetails';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } }
 });
 
-export class ExplorerWidget extends ReactWidget {
-  private _settings: ISettingRegistry.ISettings | null;
-  private _onOpenTable: OpenTable;
+export class TableDetailsWidget extends ReactWidget {
+  private _tref: ITableRef;
 
-  constructor(
-    settings: ISettingRegistry.ISettings | null,
-    onOpenTable: OpenTable
-  ) {
+  constructor(tref: ITableRef) {
     super();
-    this._settings = settings;
-    this._onOpenTable = onOpenTable;
-    this.addClass('bq-explorer-widget');
+    this._tref = tref;
+    this.addClass('bq-details-widget');
   }
 
   render(): JSX.Element {
     return (
       <QueryClientProvider client={queryClient}>
-        <ExplorerTree
-          settings={this._settings}
-          onOpenTable={this._onOpenTable}
-        />
+        <TableDetails tref={this._tref} />
       </QueryClientProvider>
     );
   }

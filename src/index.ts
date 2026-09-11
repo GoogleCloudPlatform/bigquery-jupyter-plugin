@@ -17,6 +17,8 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { LabIcon } from '@jupyterlab/ui-components';
 import { requestAPI } from './handler';
 import { ExplorerWidget } from './explorer/ExplorerWidget';
+import { ITableRef } from './explorer/TableActions';
+import { TableDetailsWidget } from './details/TableDetailsWidget';
 
 const PLUGIN_ID = 'bigquery-jupyter-plugin:plugin';
 const OPEN_COMMAND = 'bigquery-jupyter-plugin:open-explorer';
@@ -76,7 +78,27 @@ const plugin: JupyterFrontEndPlugin<void> = {
       console.warn('[bigquery-jupyter-plugin] settings unavailable:', error);
     }
 
-    const explorer = new ExplorerWidget(settings);
+    const openTables = new Map<string, TableDetailsWidget>();
+    const openTableDetails = (ref: ITableRef): void => {
+      const widgetId = `bq-details:${ref.projectId}.${ref.datasetId}.${ref.tableId}`;
+      const existing = openTables.get(widgetId);
+      if (existing && !existing.isDisposed) {
+        app.shell.activateById(existing.id);
+        return;
+      }
+      const details = new TableDetailsWidget(ref);
+      details.id = widgetId;
+      details.title.label = ref.tableId;
+      details.title.caption = `${ref.projectId}.${ref.datasetId}.${ref.tableId}`;
+      details.title.icon = bigQueryIcon;
+      details.title.closable = true;
+      openTables.set(widgetId, details);
+      details.disposed.connect(() => openTables.delete(widgetId));
+      app.shell.add(details, 'main');
+      app.shell.activateById(details.id);
+    };
+
+    const explorer = new ExplorerWidget(settings, openTableDetails);
     explorer.id = 'bigquery-jupyter-plugin-explorer';
     explorer.title.icon = bigQueryIcon;
     explorer.title.caption = 'BigQuery';
