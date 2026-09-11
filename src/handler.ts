@@ -45,7 +45,11 @@ export async function requestAPI<T>(
   }
 
   if (!response.ok) {
-    throw new ServerConnection.ResponseError(response, data.message);
+    let message = response.statusText;
+    if (data && typeof data === 'object') {
+      message = data.error || data.message || message;
+    }
+    throw new ServerConnection.ResponseError(response, message);
   }
 
   return data;
