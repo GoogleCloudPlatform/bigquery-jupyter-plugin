@@ -27,16 +27,46 @@
   white-space: nowrap;
 }
 .bq-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 4px 0;
+  padding: 5px 8px;
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+  background: var(--jp-input-background, var(--jp-layout-color1));
+}
+.bq-add:focus-within {
+  border-color: var(--jp-brand-color1);
 }
 .bq-add-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 2px 4px;
-  background: var(--jp-input-background);
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
   color: var(--jp-ui-font-color1);
-  border: 1px solid var(--jp-border-color2);
-  border-radius: 2px;
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+}
+.bq-add-input::placeholder {
+  color: var(--jp-ui-font-color3);
+}
+.bq-add-btn {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+.bq-add-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.bq-add-btn svg {
+  display: block;
 }
 .bq-tree,
 .bq-children {
@@ -51,8 +81,20 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 1px 2px;
+  padding: 3px 4px;
   border-radius: 2px;
+  line-height: 1.4;
+}
+.bq-type-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.bq-type-icon svg {
+  display: block;
+}
+.bq-row .bq-type-icon {
+  margin-right: 6px;
 }
 .bq-row:hover {
   background: var(--jp-layout-color2);
@@ -66,10 +108,11 @@
   font-weight: 500;
 }
 .bq-leaf {
-  padding: 1px 2px 1px 14px;
+  padding: 3px 4px 3px 2px;
   display: flex;
   align-items: center;
   gap: 6px;
+  line-height: 1.4;
 }
 .bq-label {
   overflow: hidden;
@@ -129,6 +172,56 @@
   margin: 0 0 4px;
 }
 
+/* ---- search field (dataproc-style outlined field) ---- */
+.bq-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+  background: var(--jp-input-background, var(--jp-layout-color1));
+}
+.bq-search:focus-within {
+  border-color: var(--jp-brand-color1);
+}
+.bq-search-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.bq-search-icon svg {
+  display: block;
+}
+.bq-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--jp-ui-font-color1);
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+}
+.bq-search-input::placeholder {
+  color: var(--jp-ui-font-color3);
+}
+.bq-search-clear {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Column rows (under an expanded table). */
+.bq-column .bq-badge {
+  color: var(--jp-ui-font-color3);
+}
+
 /* ---- context menu + actions ---- */
 .bq-header .bq-icon-btn {
   margin-left: auto;
@@ -138,7 +231,7 @@
   background: none;
   cursor: pointer;
   color: var(--jp-ui-font-color2);
-  font-size: 14px;
+  font-size: 20px;
   line-height: 1;
   padding: 0 4px;
 }
