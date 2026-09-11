@@ -14,3 +14,17 @@ bigquery_jupyter_plugin/labextension
 
 # Version file is handled by hatchling
 bigquery_jupyter_plugin/_version.py
+
+# Node / TypeScript build artifacts
+node_modules/
+lib/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# Yarn (keep yarn.lock at repo root; ignore local cache/state)
+.yarn/
+.pnp.*
+
+# Python build
+build/
