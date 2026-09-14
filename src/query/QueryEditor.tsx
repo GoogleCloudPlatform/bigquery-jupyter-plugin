@@ -271,10 +271,12 @@ export function QueryEditor({
     if (!editorServices || !hostRef.current) {
       return;
     }
-    // No text/x-sql mimeType: that would make the host inject its own
-    // (StandardSQL) language and conflict with the BigQuery dialect we supply
-    // below. We provide the language explicitly via the sql() extension.
-    const model = new CodeEditor.Model();
+    // Set the SQL mimeType so the host resolves a language into its (high
+    // precedence) language compartment -- that is also what makes it apply the
+    // theme's syntax highlighting. We then override the *parser* with our
+    // BigQuery dialect at Prec.highest below, so the backtick fix stays while
+    // the host keeps driving the highlight style.
+    const model = new CodeEditor.Model({ mimeType: 'text/x-sql' });
     model.sharedModel.setSource(initialQuery ?? '');
     const wrapper = new CodeEditorWrapper({
       model,
@@ -282,7 +284,7 @@ export function QueryEditor({
       editorOptions: {
         config: { lineNumbers: false },
         extensions: [
-          sqlLanguage({ dialect: BIGQUERY_SQL }),
+          Prec.highest(sqlLanguage({ dialect: BIGQUERY_SQL })),
           Prec.highest(
             keymap.of([
               {
