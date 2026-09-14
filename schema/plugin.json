@@ -2,6 +2,16 @@
   "title": "BigQuery Jupyter Plugin",
   "description": "Settings for the BigQuery JupyterLab plugin.",
   "type": "object",
-  "properties": {},
+  "properties": {
+    "addedProjects": {
+      "type": "array",
+      "title": "Added projects",
+      "description": "Extra BigQuery project IDs pinned in the explorer tree.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
   "additionalProperties": false
 }

@@ -1,1 +1,174 @@
 /* BigQuery JupyterLab plugin base styles. */
+
+/* ---- BigQuery explorer ---- */
+.bq-explorer-widget {
+  overflow: auto;
+}
+.bq-explorer {
+  padding: 4px 6px;
+  font-size: var(--jp-ui-font-size1);
+  color: var(--jp-ui-font-color1);
+}
+.bq-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 2px;
+}
+.bq-title {
+  font-weight: 600;
+}
+.bq-principal {
+  font-size: var(--jp-ui-font-size0);
+  color: var(--jp-ui-font-color2);
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bq-add {
+  margin: 4px 0;
+}
+.bq-add-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 4px;
+  background: var(--jp-input-background);
+  color: var(--jp-ui-font-color1);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 2px;
+}
+.bq-tree,
+.bq-children {
+  list-style: none;
+  margin: 0;
+  padding-left: 12px;
+}
+.bq-tree {
+  padding-left: 0;
+}
+.bq-row {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+.bq-row:hover {
+  background: var(--jp-layout-color2);
+}
+.bq-caret {
+  width: 12px;
+  display: inline-block;
+  color: var(--jp-ui-font-color2);
+}
+.bq-project .bq-label {
+  font-weight: 500;
+}
+.bq-leaf {
+  padding: 1px 2px 1px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bq-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bq-badge {
+  font-size: var(--jp-ui-font-size0);
+  color: var(--jp-ui-font-color3);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 2px;
+  padding: 0 3px;
+}
+.bq-info {
+  color: var(--jp-ui-font-color2);
+  padding: 1px 14px;
+  font-style: italic;
+}
+.bq-error {
+  color: var(--jp-error-color1);
+  padding: 1px 14px;
+  word-break: break-word;
+}
+
+.bq-more {
+  color: var(--jp-content-link-color, #1a73e8);
+  cursor: pointer;
+  padding: 1px 14px;
+  font-style: italic;
+}
+.bq-more:hover {
+  text-decoration: underline;
+}
+
+.bq-project {
+  position: relative;
+}
+.bq-remove {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--jp-ui-font-color3);
+  font-size: var(--jp-ui-font-size1);
+  line-height: 1;
+  padding: 0 4px;
+  visibility: hidden;
+}
+.bq-row:hover .bq-remove {
+  visibility: visible;
+}
+.bq-remove:hover {
+  color: var(--jp-error-color1);
+}
+
+.bq-filter {
+  margin: 0 0 4px;
+}
+
+/* ---- context menu + actions ---- */
+.bq-header .bq-icon-btn {
+  margin-left: auto;
+}
+.bq-icon-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--jp-ui-font-color2);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.bq-icon-btn:hover {
+  color: var(--jp-ui-font-color1);
+}
+.bq-ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+.bq-ctx-menu {
+  position: fixed;
+  z-index: 10001;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 160px;
+  background: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  box-shadow: var(--jp-elevation-z6);
+}
+.bq-ctx-item {
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: var(--jp-ui-font-size1);
+}
+.bq-ctx-item:hover {
+  background: var(--jp-layout-color2);
+}
