@@ -7,6 +7,7 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
+import { sql as sqlLanguage, SQLDialect } from '@codemirror/lang-sql';
 import { Prec } from '@codemirror/state';
 import {
   EditorView,
@@ -33,6 +34,18 @@ import {
 const PAGE_SIZE = 100;
 const POLL_MS = 800;
 const MAX_POLLS = 225; // ~3 min at POLL_MS
+
+// BigQuery SQL dialect: StandardSQL keywords/types, but with backtick-quoted
+// identifiers so a fully-qualified `project.dataset.table` is one identifier
+// token (StandardSQL would otherwise lex the words inside the backticks and
+// mis-highlight ones like `public` as keywords). Also enables BigQuery's
+// `#` line comments, double-quoted strings, and backslash escapes.
+const BIGQUERY_SQL = SQLDialect.define({
+  identifierQuotes: '`',
+  doubleQuotedStrings: true,
+  hashComments: true,
+  backslashEscapes: true
+});
 
 interface IJobRef {
   jobId: string;
@@ -258,7 +271,10 @@ export function QueryEditor({
     if (!editorServices || !hostRef.current) {
       return;
     }
-    const model = new CodeEditor.Model({ mimeType: 'text/x-sql' });
+    // No text/x-sql mimeType: that would make the host inject its own
+    // (StandardSQL) language and conflict with the BigQuery dialect we supply
+    // below. We provide the language explicitly via the sql() extension.
+    const model = new CodeEditor.Model();
     model.sharedModel.setSource(initialQuery ?? '');
     const wrapper = new CodeEditorWrapper({
       model,
@@ -266,6 +282,7 @@ export function QueryEditor({
       editorOptions: {
         config: { lineNumbers: false },
         extensions: [
+          sqlLanguage({ dialect: BIGQUERY_SQL }),
           Prec.highest(
             keymap.of([
               {

@@ -1473,7 +1473,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/lang-sql@npm:^6.10.0":
+"@codemirror/lang-sql@npm:^6.0.0, @codemirror/lang-sql@npm:^6.10.0":
   version: 6.10.0
   resolution: "@codemirror/lang-sql@npm:6.10.0"
   dependencies:
@@ -4529,6 +4529,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bigquery-jupyter-plugin@workspace:."
   dependencies:
+    "@codemirror/lang-sql": ^6.0.0
     "@codemirror/state": ^6.0.0
     "@codemirror/view": ^6.0.0
     "@jupyterlab/application": ^4.0.0
