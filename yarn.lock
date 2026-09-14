@@ -2629,7 +2629,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/statedb@npm:^4.6.3":
+"@jupyterlab/statedb@npm:^4.0.0, @jupyterlab/statedb@npm:^4.6.3":
   version: 4.6.3
   resolution: "@jupyterlab/statedb@npm:4.6.3"
   dependencies:
@@ -4536,6 +4536,7 @@ __metadata:
     "@jupyterlab/launcher": ^4.0.0
     "@jupyterlab/services": ^7.0.0
     "@jupyterlab/settingregistry": ^4.0.0
+    "@jupyterlab/statedb": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
     "@jupyterlab/ui-components": ^4.0.0
     "@tanstack/react-query": ^5.0.0

@@ -25,13 +25,18 @@ import {
   listTables
 } from './api';
 import { MenuProvider, useMenu } from './ContextMenu';
-import { OpenTable, TableActionsProvider, useOpenTable } from './TableActions';
+import {
+  ITableActions,
+  TableActionsProvider,
+  useTableActions
+} from './TableActions';
 import {
   addIcon,
   columnIcon,
   datasetIcon,
   iconForTableType,
   projectIcon,
+  queryIcon,
   searchClearIcon,
   searchIcon
 } from '../icons';
@@ -99,15 +104,17 @@ function TableNode({
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const openMenu = useMenu();
-  const openTable = useOpenTable();
+  const actions = useTableActions();
   const fqId = `${projectId}.${datasetId}.${table.id}`;
   const openDetails = (): void =>
-    openTable({
+    actions.openDetails({
       projectId,
       datasetId,
       tableId: table.id,
       tableType: table.type
     });
+  const queryTable = (): void =>
+    actions.openQuery(`SELECT * FROM \`${fqId}\` LIMIT 1000`);
   const q = useQuery({
     queryKey: ['table', projectId, datasetId, table.id],
     queryFn: () => getTable(projectId, datasetId, table.id),
@@ -125,6 +132,7 @@ function TableNode({
         onContextMenu={e =>
           openMenu(e, [
             { label: 'Open details', onClick: openDetails },
+            { label: 'Query table', onClick: queryTable },
             { label: 'Copy table ID', onClick: () => copyId(fqId) }
           ])
         }
@@ -375,6 +383,7 @@ function ExplorerTreeInner({
   settings: ISettingRegistry.ISettings | null;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const actions = useTableActions();
   const cfg = useQuery({ queryKey: ['config'], queryFn: getConfig });
   const [added, setAdded] = useState<string[]>(() =>
     readAddedProjects(settings)
@@ -431,13 +440,24 @@ function ExplorerTreeInner({
     <div className="bq-explorer">
       <div className="bq-header">
         <span className="bq-title">Dataset explorer</span>
-        <button
-          className="bq-icon-btn"
-          title="Refresh all"
-          onClick={() => queryClient.invalidateQueries()}
-        >
-          {'\u27f3'}
-        </button>
+        <span className="bq-header-actions">
+          <button
+            className="bq-icon-btn"
+            title="Open query editor"
+            aria-label="Open query editor"
+            onClick={() => actions.openQuery('')}
+          >
+            <queryIcon.react tag="span" width="18px" height="18px" />
+          </button>
+          <button
+            className="bq-icon-btn"
+            title="Refresh all"
+            aria-label="Refresh all"
+            onClick={() => queryClient.invalidateQueries()}
+          >
+            {'\u27f3'}
+          </button>
+        </span>
       </div>
       <div className="bq-principal" title="Active identity">
         {cfg.data ? (cfg.data.principal ?? 'no identity') : '…'}
@@ -506,14 +526,14 @@ function ExplorerTreeInner({
 
 export function ExplorerTree({
   settings,
-  onOpenTable
+  actions
 }: {
   settings: ISettingRegistry.ISettings | null;
-  onOpenTable: OpenTable;
+  actions: ITableActions;
 }): JSX.Element {
   return (
     <MenuProvider>
-      <TableActionsProvider open={onOpenTable}>
+      <TableActionsProvider actions={actions}>
         <ExplorerTreeInner settings={settings} />
       </TableActionsProvider>
     </MenuProvider>

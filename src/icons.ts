@@ -61,6 +61,14 @@ export const columnIcon = makeIcon(
   '<path class="jp-icon3" fill="#616161" fill-rule="evenodd" clip-rule="evenodd" d="M6.375 4.125H2.625V13.875H6.375V4.125ZM7.125 4.125H10.875V13.875H7.125V4.125ZM11.625 4.125H15.375V13.875H11.625V4.125Z"/>'
 );
 
+// Query editor: "SQL" inside code brackets, i.e. <SQL>. Sized to fill most of
+// the icon box (bold + stretched to width) so it stays legible at small sizes.
+export const queryIcon = makeIcon(
+  'bigquery-jupyter-plugin:query',
+  '0 0 24 24',
+  '<text x="12" y="16.2" text-anchor="middle" textLength="22" lengthAdjust="spacingAndGlyphs" font-family="sans-serif" font-weight="700" font-size="12" class="jp-icon3" fill="#616161">&lt;SQL&gt;</text>'
+);
+
 // Add (plus) — for the "Add project by ID" box.
 export const addIcon = makeIcon(
   'bigquery-jupyter-plugin:add',

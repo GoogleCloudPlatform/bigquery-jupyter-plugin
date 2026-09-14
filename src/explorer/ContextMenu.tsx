@@ -14,6 +14,12 @@ import React, {
   useEffect,
   useState
 } from 'react';
+import { createPortal } from 'react-dom';
+
+// Rough menu size, used to keep the menu inside the viewport when opened near
+// an edge.
+const MENU_WIDTH = 180;
+const ITEM_HEIGHT = 28;
 
 export interface IMenuItem {
   label: string;
@@ -44,7 +50,18 @@ export function MenuProvider({
   const open = useCallback<OpenFn>((event, items) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenu({ x: event.clientX, y: event.clientY, items });
+    // clientX/clientY are viewport coordinates; clamp so the menu stays on
+    // screen when opened near the right/bottom edge.
+    const menuHeight = items.length * ITEM_HEIGHT + 8;
+    const x = Math.max(
+      4,
+      Math.min(event.clientX, window.innerWidth - MENU_WIDTH - 4)
+    );
+    const y = Math.max(
+      4,
+      Math.min(event.clientY, window.innerHeight - menuHeight - 4)
+    );
+    setMenu({ x, y, items });
   }, []);
 
   useEffect(() => {
@@ -63,35 +80,37 @@ export function MenuProvider({
   return (
     <MenuContext.Provider value={open}>
       {children}
-      {menu && (
-        <div
-          className="bq-ctx-backdrop"
-          onClick={close}
-          onContextMenu={e => {
-            e.preventDefault();
-            close();
-          }}
-        >
-          <ul
-            className="bq-ctx-menu"
-            style={{ left: menu.x, top: menu.y }}
-            onClick={e => e.stopPropagation()}
+      {menu &&
+        createPortal(
+          <div
+            className="bq-ctx-backdrop"
+            onClick={close}
+            onContextMenu={e => {
+              e.preventDefault();
+              close();
+            }}
           >
-            {menu.items.map((item, i) => (
-              <li
-                key={i}
-                className="bq-ctx-item"
-                onClick={() => {
-                  item.onClick();
-                  close();
-                }}
-              >
-                {item.label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+            <ul
+              className="bq-ctx-menu"
+              style={{ left: menu.x, top: menu.y }}
+              onClick={e => e.stopPropagation()}
+            >
+              {menu.items.map((item, i) => (
+                <li
+                  key={i}
+                  className="bq-ctx-item"
+                  onClick={() => {
+                    item.onClick();
+                    close();
+                  }}
+                >
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.body
+        )}
     </MenuContext.Provider>
   );
 }

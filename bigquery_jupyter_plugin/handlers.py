@@ -5,13 +5,36 @@
 # https://developers.google.com/open-source/licenses/bsd
 
 import json
+import re
 
 import tornado
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 from tornado.ioloop import IOLoop
 
-from bigquery_jupyter_plugin.services import credentials, details, explorer
+from bigquery_jupyter_plugin.services import credentials, details, explorer, query
+
+
+def _clean_error(e):
+    """Turn a Google API error into a short, human-readable message.
+
+    Prefers the structured error message BigQuery returns (e.g. "Syntax error:
+    ...") over the raw ``str(e)``, which carries the HTTP verb, full request URL,
+    a duplicated reason/message, and a trailing job id.
+    """
+    errors = getattr(e, "errors", None)
+    if isinstance(errors, (list, tuple)):
+        for err in errors:
+            if isinstance(err, dict) and err.get("message"):
+                return err["message"]
+    msg = getattr(e, "message", None) or str(e)
+    # Drop the "NNN VERB https://...: " API-call prefix, or a bare status code.
+    msg = re.sub(r"^\d{3}\s+[A-Z]+\s+https?://\S+:\s*", "", msg)
+    msg = re.sub(r"^\d{3}\s+", "", msg)
+    # Drop the duplicated "; reason: ...; message: ..." tail and any job id tail.
+    msg = re.split(r";\s*reason:", msg)[0]
+    msg = re.sub(r"\s*Location:\s*\S+.*?Job ID:\s*\S+\s*$", "", msg)
+    return msg.strip()
 
 
 async def _finish_json(handler, fn):
@@ -29,7 +52,7 @@ async def _finish_json(handler, fn):
             status = 500
         handler.log.exception("BigQuery plugin request failed")
         handler.set_status(status)
-        handler.finish(json.dumps({"error": str(e)}))
+        handler.finish(json.dumps({"error": _clean_error(e)}))
 
 
 class HealthCheckHandler(APIHandler):
@@ -117,6 +140,63 @@ class PreviewHandler(APIHandler):
         )
 
 
+class DryRunHandler(APIHandler):
+    """Estimate the bytes a query would process (no execution)."""
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = json.loads(self.request.body or b"{}")
+        sql = body.get("query", "")
+        project_id = body.get("projectId") or None
+        await _finish_json(self, lambda: query.dry_run(sql, project_id))
+
+
+class QueryHandler(APIHandler):
+    """Submit a query job and return its reference immediately."""
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = json.loads(self.request.body or b"{}")
+        sql = body.get("query", "")
+        project_id = body.get("projectId") or None
+        location = body.get("location") or None
+        await _finish_json(
+            self, lambda: query.execute_query(sql, project_id, location)
+        )
+
+
+class QueryResultsHandler(APIHandler):
+    """Return a page of a query job's results (or its state if still running)."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        job_id = self.get_argument("jobId")
+        project_id = self.get_argument("projectId", default="") or None
+        location = self.get_argument("location", default="") or None
+        page_token = self.get_argument("pageToken", default="") or None
+        max_results = int(self.get_argument("maxResults", default="100"))
+        await _finish_json(
+            self,
+            lambda: query.get_query_results(
+                job_id, project_id, location, page_token, max_results
+            ),
+        )
+
+
+class CancelQueryHandler(APIHandler):
+    """Request cancellation of a running query job."""
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = json.loads(self.request.body or b"{}")
+        job_id = body.get("jobId", "")
+        project_id = body.get("projectId") or None
+        location = body.get("location") or None
+        await _finish_json(
+            self, lambda: query.cancel_query(job_id, project_id, location)
+        )
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -133,6 +213,10 @@ def setup_handlers(web_app):
         "tables": TablesHandler,
         "table": TableHandler,
         "preview": PreviewHandler,
+        "dryRun": DryRunHandler,
+        "query": QueryHandler,
+        "queryResults": QueryResultsHandler,
+        "cancelQuery": CancelQueryHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)

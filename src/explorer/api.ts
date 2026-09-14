@@ -130,3 +130,73 @@ export function previewTable(
     )}&maxResults=${maxResults}&startIndex=${startIndex}`
   );
 }
+
+export interface IDryRun {
+  totalBytesProcessed?: number | null;
+  cacheHit?: boolean | null;
+  statementType?: string | null;
+}
+
+export interface IQueryJob {
+  jobId: string;
+  projectId: string;
+  location: string | null;
+  state: string;
+}
+
+export interface IQueryResults {
+  state: string;
+  schema: ISchemaField[];
+  rows: PreviewCell[][];
+  totalRows: number | null;
+  nextPageToken?: string | null;
+}
+
+export function dryRun(query: string, projectId?: string): Promise<IDryRun> {
+  return requestAPI('dryRun', {
+    method: 'POST',
+    body: JSON.stringify({ query, projectId })
+  });
+}
+
+export function executeQuery(
+  query: string,
+  projectId?: string,
+  location?: string
+): Promise<IQueryJob> {
+  return requestAPI('query', {
+    method: 'POST',
+    body: JSON.stringify({ query, projectId, location })
+  });
+}
+
+export function getQueryResults(
+  jobId: string,
+  projectId: string | null,
+  location: string | null,
+  pageToken: string | null,
+  maxResults: number
+): Promise<IQueryResults> {
+  const params = new URLSearchParams({ jobId, maxResults: String(maxResults) });
+  if (projectId) {
+    params.set('projectId', projectId);
+  }
+  if (location) {
+    params.set('location', location);
+  }
+  if (pageToken) {
+    params.set('pageToken', pageToken);
+  }
+  return requestAPI(`queryResults?${params.toString()}`);
+}
+
+export function cancelQuery(
+  jobId: string,
+  projectId: string | null,
+  location: string | null
+): Promise<{ jobId: string; state: string }> {
+  return requestAPI('cancelQuery', {
+    method: 'POST',
+    body: JSON.stringify({ jobId, projectId, location })
+  });
+}
