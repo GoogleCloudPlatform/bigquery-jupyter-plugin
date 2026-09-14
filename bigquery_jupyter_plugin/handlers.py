@@ -11,7 +11,7 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 from tornado.ioloop import IOLoop
 
-from bigquery_jupyter_plugin.services import credentials, explorer
+from bigquery_jupyter_plugin.services import credentials, details, explorer
 
 
 async def _finish_json(handler, fn):
@@ -86,6 +86,37 @@ class TablesHandler(APIHandler):
         )
 
 
+class TableHandler(APIHandler):
+    """Return schema and metadata for a single table."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        dataset_id = self.get_argument("dataset_id")
+        table_id = self.get_argument("table_id")
+        await _finish_json(
+            self, lambda: details.get_table(project_id, dataset_id, table_id)
+        )
+
+
+class PreviewHandler(APIHandler):
+    """Return a page of table rows via tabledata.list (no query cost)."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        dataset_id = self.get_argument("dataset_id")
+        table_id = self.get_argument("table_id")
+        max_results = int(self.get_argument("maxResults", default="100"))
+        start_index = int(self.get_argument("startIndex", default="0"))
+        await _finish_json(
+            self,
+            lambda: details.preview_table(
+                project_id, dataset_id, table_id, max_results, start_index
+            ),
+        )
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -100,6 +131,8 @@ def setup_handlers(web_app):
         "projects": ProjectsHandler,
         "datasets": DatasetsHandler,
         "tables": TablesHandler,
+        "table": TableHandler,
+        "preview": PreviewHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)

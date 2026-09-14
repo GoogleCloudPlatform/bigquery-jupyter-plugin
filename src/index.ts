@@ -14,22 +14,14 @@ import {
 import { ICommandPalette, Notification } from '@jupyterlab/apputils';
 import { ILauncher } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
-import { LabIcon } from '@jupyterlab/ui-components';
 import { requestAPI } from './handler';
 import { ExplorerWidget } from './explorer/ExplorerWidget';
+import { ITableRef } from './explorer/TableActions';
+import { TableDetailsWidget } from './details/TableDetailsWidget';
+import { datasetExplorerIcon } from './icons';
 
 const PLUGIN_ID = 'bigquery-jupyter-plugin:plugin';
 const OPEN_COMMAND = 'bigquery-jupyter-plugin:open-explorer';
-
-const bigQueryIconSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">' +
-  '<path class="jp-icon3" fill="#5f6368" fill-rule="evenodd" clip-rule="evenodd" d="M8.5 15C9.93884 15 11.2684 14.5326 12.3451 13.7414L15.2677 16.664L16.6819 15.2498L13.7566 12.3245C14.5386 11.2514 15 9.92963 15 8.5C15 4.90979 12.0902 2 8.5 2C4.90979 2 2 4.90979 2 8.5C2 12.0902 4.90979 15 8.5 15ZM13 8.5C13 10.9853 10.9853 13 8.5 13C6.01472 13 4 10.9853 4 8.5C4 6.01472 6.01472 4 8.5 4C10.9853 4 13 6.01472 13 8.5ZM11 10.9495C10.7129 11.2424 10.3748 11.4851 10 11.6632V9H11V10.9495ZM6 10.9495C6.28706 11.2424 6.6252 11.4851 7 11.6632V8H6V10.9495ZM8.5 12C8.66976 12 8.8367 11.9879 9 11.9646V7H8V11.9646C8.1633 11.9879 8.33024 12 8.5 12Z"/>' +
-  '</svg>';
-
-const bigQueryIcon = new LabIcon({
-  name: 'bigquery-jupyter-plugin:icon',
-  svgstr: bigQueryIconSvg
-});
 
 interface IPluginConfig {
   principal: string | null;
@@ -76,22 +68,42 @@ const plugin: JupyterFrontEndPlugin<void> = {
       console.warn('[bigquery-jupyter-plugin] settings unavailable:', error);
     }
 
-    const explorer = new ExplorerWidget(settings);
+    const openTables = new Map<string, TableDetailsWidget>();
+    const openTableDetails = (ref: ITableRef): void => {
+      const widgetId = `bq-details:${ref.projectId}.${ref.datasetId}.${ref.tableId}`;
+      const existing = openTables.get(widgetId);
+      if (existing && !existing.isDisposed) {
+        app.shell.activateById(existing.id);
+        return;
+      }
+      const details = new TableDetailsWidget(ref);
+      details.id = widgetId;
+      details.title.label = ref.tableId;
+      details.title.caption = `${ref.projectId}.${ref.datasetId}.${ref.tableId}`;
+      details.title.icon = datasetExplorerIcon;
+      details.title.closable = true;
+      openTables.set(widgetId, details);
+      details.disposed.connect(() => openTables.delete(widgetId));
+      app.shell.add(details, 'main');
+      app.shell.activateById(details.id);
+    };
+
+    const explorer = new ExplorerWidget(settings, openTableDetails);
     explorer.id = 'bigquery-jupyter-plugin-explorer';
-    explorer.title.icon = bigQueryIcon;
-    explorer.title.caption = 'BigQuery';
+    explorer.title.icon = datasetExplorerIcon;
+    explorer.title.caption = 'Dataset explorer';
     app.shell.add(explorer, 'left', { rank: 250 });
 
     app.commands.addCommand(OPEN_COMMAND, {
-      label: 'BigQuery Explorer',
-      caption: 'Open the BigQuery explorer',
-      icon: bigQueryIcon,
+      label: 'Dataset explorer',
+      caption: 'Open the dataset explorer',
+      icon: datasetExplorerIcon,
       execute: () => {
         app.shell.activateById(explorer.id);
       }
     });
     if (palette) {
-      palette.addItem({ command: OPEN_COMMAND, category: 'BigQuery' });
+      palette.addItem({ command: OPEN_COMMAND, category: 'Dataset explorer' });
     }
     if (launcher) {
       launcher.add({ command: OPEN_COMMAND, category: 'Other', rank: 1 });

@@ -17,12 +17,24 @@ import {
 } from '@tanstack/react-query';
 import {
   getConfig,
+  getTable,
   IDatasetPage,
+  ISchemaField,
   ITablePage,
   listDatasets,
   listTables
 } from './api';
 import { MenuProvider, useMenu } from './ContextMenu';
+import { OpenTable, TableActionsProvider, useOpenTable } from './TableActions';
+import {
+  addIcon,
+  columnIcon,
+  datasetIcon,
+  iconForTableType,
+  projectIcon,
+  searchClearIcon,
+  searchIcon
+} from '../icons';
 
 // While a dataset filter is active we auto-load pages so the filter is
 // comprehensive; cap it so a project with a huge number of datasets can't
@@ -53,6 +65,29 @@ const Caret = ({ open }: { open: boolean }): JSX.Element => (
   <span className="bq-caret">{open ? '\u25be' : '\u25b8'}</span>
 );
 
+function ColumnNode({ field }: { field: ISchemaField }): JSX.Element {
+  const openMenu = useMenu();
+  return (
+    <li
+      className="bq-node bq-leaf bq-column"
+      onContextMenu={e =>
+        openMenu(e, [
+          { label: 'Copy column name', onClick: () => copyId(field.name) }
+        ])
+      }
+    >
+      <columnIcon.react
+        tag="span"
+        className="bq-type-icon"
+        width="16px"
+        height="16px"
+      />
+      <span className="bq-label">{field.name}</span>
+      <span className="bq-badge">{field.type.toLowerCase()}</span>
+    </li>
+  );
+}
+
 function TableNode({
   projectId,
   datasetId,
@@ -62,17 +97,60 @@ function TableNode({
   datasetId: string;
   table: { id: string; type: string };
 }): JSX.Element {
+  const [open, setOpen] = useState(false);
   const openMenu = useMenu();
+  const openTable = useOpenTable();
   const fqId = `${projectId}.${datasetId}.${table.id}`;
+  const openDetails = (): void =>
+    openTable({
+      projectId,
+      datasetId,
+      tableId: table.id,
+      tableType: table.type
+    });
+  const q = useQuery({
+    queryKey: ['table', projectId, datasetId, table.id],
+    queryFn: () => getTable(projectId, datasetId, table.id),
+    enabled: open
+  });
+  const fields = q.data ? q.data.schema : [];
+  const typeIcon = iconForTableType(table.type);
   return (
-    <li
-      className="bq-node bq-leaf"
-      onContextMenu={e =>
-        openMenu(e, [{ label: 'Copy table ID', onClick: () => copyId(fqId) }])
-      }
-    >
-      <span className="bq-label">{table.id}</span>
-      <span className="bq-badge">{table.type.toLowerCase()}</span>
+    <li className="bq-node">
+      <div
+        className="bq-row"
+        title="Click to expand columns; double-click to open details"
+        onClick={() => setOpen(o => !o)}
+        onDoubleClick={openDetails}
+        onContextMenu={e =>
+          openMenu(e, [
+            { label: 'Open details', onClick: openDetails },
+            { label: 'Copy table ID', onClick: () => copyId(fqId) }
+          ])
+        }
+      >
+        <Caret open={open} />
+        <typeIcon.react
+          tag="span"
+          className="bq-type-icon"
+          width="16px"
+          height="16px"
+        />
+        <span className="bq-label">{table.id}</span>
+        <span className="bq-badge">{table.type.toLowerCase()}</span>
+      </div>
+      {open && (
+        <ul className="bq-children">
+          {q.isLoading && <li className="bq-info">Loading…</li>}
+          {q.isError && <li className="bq-error">{errorMessage(q.error)}</li>}
+          {q.data && fields.length === 0 && (
+            <li className="bq-info">No columns</li>
+          )}
+          {fields.map((f, i) => (
+            <ColumnNode key={`${f.name}-${i}`} field={f} />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
@@ -132,6 +210,12 @@ function DatasetNode({
         }
       >
         <Caret open={open} />
+        <datasetIcon.react
+          tag="span"
+          className="bq-type-icon"
+          width="16px"
+          height="16px"
+        />
         <span className="bq-label">{datasetId}</span>
       </div>
       {open && (
@@ -173,6 +257,7 @@ function ProjectNode({
   onRemove?: () => void;
 }): JSX.Element {
   const [open, setOpen] = useState(Boolean(defaultOpen));
+  const filtering = Boolean(filter);
   const openMenu = useMenu();
   const queryClient = useQueryClient();
   const q = useInfiniteQuery({
@@ -181,7 +266,9 @@ function ProjectNode({
       listDatasets(projectId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last: IDatasetPage) => last.nextPageToken ?? undefined,
-    enabled: open
+    // While a filter is active, load every project (even collapsed ones) so a
+    // matching dataset nested under an unexpanded project is still surfaced.
+    enabled: open || filtering
   });
   const pageCount = q.data ? q.data.pages.length : 0;
 
@@ -189,23 +276,26 @@ function ProjectNode({
   // comprehensive (no manual "Load more" needed), up to a safety cap.
   useEffect(() => {
     if (
-      open &&
-      filter &&
+      filtering &&
       q.hasNextPage &&
       !q.isFetchingNextPage &&
       pageCount < AUTO_LOAD_PAGE_CAP
     ) {
       q.fetchNextPage();
     }
-  }, [open, filter, q.hasNextPage, q.isFetchingNextPage, pageCount]);
+  }, [filtering, q.hasNextPage, q.isFetchingNextPage, pageCount]);
 
   const allDatasets = q.data ? q.data.pages.flatMap(p => p.datasets) : [];
   const datasets = filter
     ? allDatasets.filter(d => matches(d.id, filter))
     : allDatasets;
-  const autoLoading = Boolean(filter) && q.isFetchingNextPage;
+  const hasMatches = datasets.length > 0;
+  // Unnest: when filtering, auto-expand a project iff it has a matching dataset
+  // (projects with no match stay visually collapsed).
+  const showChildren = open || (filtering && hasMatches);
+  const autoLoading = filtering && q.isFetchingNextPage;
   const cappedWhileFiltering =
-    Boolean(filter) && q.hasNextPage && pageCount >= AUTO_LOAD_PAGE_CAP;
+    filtering && q.hasNextPage && pageCount >= AUTO_LOAD_PAGE_CAP;
 
   const menuItems = [
     { label: 'Copy project ID', onClick: () => copyId(projectId) },
@@ -225,7 +315,13 @@ function ProjectNode({
         onClick={() => setOpen(o => !o)}
         onContextMenu={e => openMenu(e, menuItems)}
       >
-        <Caret open={open} />
+        <Caret open={showChildren} />
+        <projectIcon.react
+          tag="span"
+          className="bq-type-icon"
+          width="16px"
+          height="16px"
+        />
         <span className="bq-label">{projectId}</span>
         {onRemove && (
           <button
@@ -240,27 +336,28 @@ function ProjectNode({
           </button>
         )}
       </div>
-      {open && (
+      {showChildren && (
         <ul className="bq-children">
-          {q.isLoading && <li className="bq-info">Loading…</li>}
-          {q.isError && <li className="bq-error">{errorMessage(q.error)}</li>}
-          {q.data && allDatasets.length === 0 && (
+          {open && q.isLoading && <li className="bq-info">Loading…</li>}
+          {open && q.isError && (
+            <li className="bq-error">{errorMessage(q.error)}</li>
+          )}
+          {open && !filtering && q.data && allDatasets.length === 0 && (
             <li className="bq-info">No datasets</li>
           )}
           {datasets.map(d => (
             <DatasetNode key={d.id} projectId={projectId} datasetId={d.id} />
           ))}
-          {autoLoading && <li className="bq-info">Filtering…</li>}
-          {Boolean(filter) &&
+          {open && autoLoading && <li className="bq-info">Filtering…</li>}
+          {open &&
+            filtering &&
             !autoLoading &&
             allDatasets.length > 0 &&
-            datasets.length === 0 && (
-              <li className="bq-info">No matching datasets</li>
-            )}
-          {cappedWhileFiltering && (
+            !hasMatches && <li className="bq-info">No matching datasets</li>}
+          {open && cappedWhileFiltering && (
             <li className="bq-info">Refine filter to load more…</li>
           )}
-          {!filter && q.hasNextPage && (
+          {!filtering && q.hasNextPage && (
             <LoadMore
               onClick={() => q.fetchNextPage()}
               loading={q.isFetchingNextPage}
@@ -333,7 +430,7 @@ function ExplorerTreeInner({
   return (
     <div className="bq-explorer">
       <div className="bq-header">
-        <span className="bq-title">BigQuery</span>
+        <span className="bq-title">Dataset explorer</span>
         <button
           className="bq-icon-btn"
           title="Refresh all"
@@ -348,18 +445,45 @@ function ExplorerTreeInner({
       <form className="bq-add" onSubmit={onAdd}>
         <input
           className="bq-add-input"
+          type="text"
           placeholder="Add project by ID"
           value={input}
           onChange={e => setInput(e.target.value)}
         />
+        <button
+          className="bq-add-btn"
+          type="submit"
+          title="Add project"
+          aria-label="Add project"
+          disabled={!input.trim()}
+        >
+          <addIcon.react tag="span" width="18px" height="18px" />
+        </button>
       </form>
-      <div className="bq-filter">
+      <div className="bq-search">
+        <searchIcon.react
+          tag="span"
+          className="bq-search-icon"
+          width="18px"
+          height="18px"
+        />
         <input
-          className="bq-add-input"
-          placeholder="Filter datasets by name"
+          className="bq-search-input"
+          type="text"
+          placeholder="Search datasets"
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
+        {filter && (
+          <button
+            className="bq-search-clear"
+            title="Clear search"
+            aria-label="Clear search"
+            onClick={() => setFilter('')}
+          >
+            <searchClearIcon.react tag="span" width="16px" height="16px" />
+          </button>
+        )}
       </div>
       <ul className="bq-tree">
         {roots.map((p, i) => (
@@ -381,13 +505,17 @@ function ExplorerTreeInner({
 }
 
 export function ExplorerTree({
-  settings
+  settings,
+  onOpenTable
 }: {
   settings: ISettingRegistry.ISettings | null;
+  onOpenTable: OpenTable;
 }): JSX.Element {
   return (
     <MenuProvider>
-      <ExplorerTreeInner settings={settings} />
+      <TableActionsProvider open={onOpenTable}>
+        <ExplorerTreeInner settings={settings} />
+      </TableActionsProvider>
     </MenuProvider>
   );
 }

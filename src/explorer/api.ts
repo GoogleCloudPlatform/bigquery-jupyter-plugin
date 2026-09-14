@@ -36,6 +36,48 @@ export interface ITablePage {
   nextPageToken?: string | null;
 }
 
+export interface ISchemaField {
+  name: string;
+  type: string;
+  mode?: string | null;
+  description?: string | null;
+  fields: ISchemaField[];
+}
+
+export interface ITimePartitioning {
+  type?: string | null;
+  field?: string | null;
+  expirationMs?: number | null;
+  requirePartitionFilter?: boolean | null;
+}
+
+export interface ITableMeta {
+  id: string;
+  projectId: string;
+  datasetId: string;
+  type: string;
+  schema: ISchemaField[];
+  numRows?: number | null;
+  sizeBytes?: number | null;
+  location?: string | null;
+  description?: string | null;
+  friendlyName?: string | null;
+  created?: string | null;
+  modified?: string | null;
+  expires?: string | null;
+  timePartitioning?: ITimePartitioning | null;
+  clusteringFields?: string[] | null;
+  viewQuery?: string | null;
+}
+
+export type PreviewCell = string | number | boolean | null | object;
+
+export interface IPreviewPage {
+  schema: ISchemaField[];
+  rows: PreviewCell[][];
+  totalRows: number;
+}
+
 export function getConfig(): Promise<IConfig> {
   return requestAPI<IConfig>('config');
 }
@@ -58,5 +100,33 @@ export function listTables(
     `tables?project_id=${encodeURIComponent(projectId)}&dataset_id=${encodeURIComponent(
       datasetId
     )}${t}`
+  );
+}
+
+export function getTable(
+  projectId: string,
+  datasetId: string,
+  tableId: string
+): Promise<ITableMeta> {
+  return requestAPI(
+    `table?project_id=${encodeURIComponent(projectId)}&dataset_id=${encodeURIComponent(
+      datasetId
+    )}&table_id=${encodeURIComponent(tableId)}`
+  );
+}
+
+export function previewTable(
+  projectId: string,
+  datasetId: string,
+  tableId: string,
+  maxResults: number,
+  startIndex: number
+): Promise<IPreviewPage> {
+  return requestAPI(
+    `preview?project_id=${encodeURIComponent(projectId)}&dataset_id=${encodeURIComponent(
+      datasetId
+    )}&table_id=${encodeURIComponent(
+      tableId
+    )}&maxResults=${maxResults}&startIndex=${startIndex}`
   );
 }
