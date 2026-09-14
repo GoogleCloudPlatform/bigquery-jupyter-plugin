@@ -19,13 +19,15 @@ export interface ITableRef {
 export interface ITableActions {
   openDetails: (ref: ITableRef) => void;
   openQuery: (sql: string) => void;
+  openHistory: () => void;
 }
 
 const noop = (): void => undefined;
 
 const TableActionsContext = createContext<ITableActions>({
   openDetails: noop,
-  openQuery: noop
+  openQuery: noop,
+  openHistory: noop
 });
 
 export function TableActionsProvider({

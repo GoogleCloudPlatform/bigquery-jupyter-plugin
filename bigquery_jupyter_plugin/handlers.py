@@ -12,7 +12,13 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 from tornado.ioloop import IOLoop
 
-from bigquery_jupyter_plugin.services import credentials, details, explorer, query
+from bigquery_jupyter_plugin.services import (
+    credentials,
+    details,
+    explorer,
+    query,
+    query_history,
+)
 
 
 def _clean_error(e):
@@ -197,6 +203,24 @@ class CancelQueryHandler(APIHandler):
         )
 
 
+class QueryHistoryHandler(APIHandler):
+    """List the caller's recent query jobs in a project (paginated)."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id", default="") or None
+        max_results = int(self.get_argument("maxResults", default="50"))
+        min_creation = self.get_argument("minCreationTime", default="")
+        min_creation_ms = int(min_creation) if min_creation else None
+        page_token = self.get_argument("pageToken", default="") or None
+        await _finish_json(
+            self,
+            lambda: query_history.list_query_history(
+                project_id, max_results, min_creation_ms, page_token
+            ),
+        )
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -217,6 +241,7 @@ def setup_handlers(web_app):
         "query": QueryHandler,
         "queryResults": QueryResultsHandler,
         "cancelQuery": CancelQueryHandler,
+        "queryHistory": QueryHistoryHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)

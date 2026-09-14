@@ -26,12 +26,15 @@ import { ExplorerWidget } from './explorer/ExplorerWidget';
 import { ITableRef } from './explorer/TableActions';
 import { TableDetailsWidget } from './details/TableDetailsWidget';
 import { QueryEditorWidget } from './query/QueryEditorWidget';
-import { datasetExplorerIcon, queryIcon } from './icons';
+import { QueryHistoryWidget } from './query/QueryHistoryWidget';
+import { datasetExplorerIcon, historyIcon, queryIcon } from './icons';
 
 const PLUGIN_ID = 'bigquery-jupyter-plugin:plugin';
 const OPEN_COMMAND = 'bigquery-jupyter-plugin:open-explorer';
 const NEW_QUERY_COMMAND = 'bigquery-jupyter-plugin:new-query';
 const OPEN_DETAILS_COMMAND = 'bigquery-jupyter-plugin:open-details';
+const HISTORY_COMMAND = 'bigquery-jupyter-plugin:query-history';
+const HISTORY_WIDGET_ID = 'bigquery-jupyter-plugin-history';
 const LAUNCHER_STATE_KEY = 'bigquery-jupyter-plugin:launcher-open';
 
 interface IPluginConfig {
@@ -90,6 +93,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
     const queryTracker = new WidgetTracker<QueryEditorWidget>({
       namespace: 'bigquery-jupyter-plugin-query'
     });
+    const historyTracker = new WidgetTracker<QueryHistoryWidget>({
+      namespace: 'bigquery-jupyter-plugin-history'
+    });
 
     const queryProjects = (): string[] => {
       const added = settings
@@ -110,6 +116,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
     let queryCounter = 0;
     const openQueryEditor = (sql = ''): void => {
       void app.commands.execute(NEW_QUERY_COMMAND, { sql });
+    };
+
+    const openQueryHistory = (): void => {
+      void app.commands.execute(HISTORY_COMMAND);
     };
 
     const openTables = new Map<string, TableDetailsWidget>();
@@ -143,7 +153,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     const explorer = new ExplorerWidget(settings, {
       openDetails: openTableDetails,
-      openQuery: openQueryEditor
+      openQuery: openQueryEditor,
+      openHistory: openQueryHistory
     });
     explorer.id = 'bigquery-jupyter-plugin-explorer';
     explorer.title.icon = datasetExplorerIcon;
@@ -202,6 +213,46 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     });
 
+    // The query-history panel is a single reused main-area widget.
+    let historyWidget: QueryHistoryWidget | null = null;
+    app.commands.addCommand(HISTORY_COMMAND, {
+      label: 'Query history',
+      caption: 'Show recent BigQuery queries',
+      icon: historyIcon,
+      execute: () => {
+        if (historyWidget && !historyWidget.isDisposed) {
+          if (historyWidget.isAttached) {
+            app.shell.activateById(historyWidget.id);
+            return;
+          }
+          // Closing a tab detaches (but doesn't dispose) the widget; drop the
+          // stale instance and open a fresh one so its data reloads.
+          historyWidget.dispose();
+          historyWidget = null;
+        }
+        const widget = new QueryHistoryWidget(
+          queryProjects(),
+          defaultProject,
+          openQueryEditor
+        );
+        widget.id = HISTORY_WIDGET_ID;
+        widget.title.label = 'Query history';
+        widget.title.icon = historyIcon;
+        widget.title.closable = true;
+        historyWidget = widget;
+        widget.disposed.connect(() => {
+          if (historyWidget === widget) {
+            historyWidget = null;
+          }
+        });
+        if (!historyTracker.has(widget)) {
+          void historyTracker.add(widget);
+        }
+        app.shell.add(widget, 'main');
+        app.shell.activateById(widget.id);
+      }
+    });
+
     // Restore query editors and table-details panels across a page reload.
     if (restorer) {
       void restorer.restore(queryTracker, {
@@ -219,6 +270,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }),
         name: widget => widget.id
       });
+      void restorer.restore(historyTracker, {
+        command: HISTORY_COMMAND,
+        name: () => HISTORY_WIDGET_ID
+      });
     }
 
     if (palette) {
@@ -227,10 +282,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
         command: NEW_QUERY_COMMAND,
         category: 'Dataset explorer'
       });
+      palette.addItem({
+        command: HISTORY_COMMAND,
+        category: 'Dataset explorer'
+      });
     }
     if (launcher) {
       launcher.add({ command: OPEN_COMMAND, category: 'Other', rank: 1 });
       launcher.add({ command: NEW_QUERY_COMMAND, category: 'Other', rank: 2 });
+      launcher.add({ command: HISTORY_COMMAND, category: 'Other', rank: 3 });
     }
 
     // JupyterLab doesn't persist the Launcher across reloads. Remember whether

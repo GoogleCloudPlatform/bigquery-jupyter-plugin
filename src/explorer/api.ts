@@ -200,3 +200,41 @@ export function cancelQuery(
     body: JSON.stringify({ jobId, projectId, location })
   });
 }
+
+export interface IQueryHistoryJob {
+  jobId: string;
+  projectId: string;
+  location: string | null;
+  state: string;
+  query: string | null;
+  statementType: string | null;
+  created: string | null;
+  started: string | null;
+  ended: string | null;
+  totalBytesProcessed: number | null;
+  totalBytesBilled: number | null;
+  cacheHit: boolean | null;
+  errored: boolean;
+  errorMessage: string | null;
+  userEmail: string | null;
+}
+
+export interface IQueryHistoryPage {
+  jobs: IQueryHistoryJob[];
+  nextPageToken?: string | null;
+}
+
+export function listQueryHistory(
+  projectId?: string,
+  maxResults = 50,
+  pageToken?: string | null
+): Promise<IQueryHistoryPage> {
+  const params = new URLSearchParams({ maxResults: String(maxResults) });
+  if (projectId) {
+    params.set('project_id', projectId);
+  }
+  if (pageToken) {
+    params.set('pageToken', pageToken);
+  }
+  return requestAPI(`queryHistory?${params.toString()}`);
+}
