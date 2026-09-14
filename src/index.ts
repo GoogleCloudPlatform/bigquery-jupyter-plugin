@@ -18,6 +18,7 @@ import {
   Notification,
   WidgetTracker
 } from '@jupyterlab/apputils';
+import { IEditorServices } from '@jupyterlab/codeeditor';
 import { ILauncher } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { IStateDB } from '@jupyterlab/statedb';
@@ -48,7 +49,14 @@ const plugin: JupyterFrontEndPlugin<void> = {
   description: 'BigQuery JupyterLab 4 plugin',
   autoStart: true,
   requires: [ISettingRegistry],
-  optional: [ICommandPalette, ILauncher, ILayoutRestorer, ILabShell, IStateDB],
+  optional: [
+    ICommandPalette,
+    ILauncher,
+    ILayoutRestorer,
+    ILabShell,
+    IStateDB,
+    IEditorServices
+  ],
   activate: async (
     app: JupyterFrontEnd,
     settingRegistry: ISettingRegistry,
@@ -56,7 +64,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
     launcher: ILauncher | null,
     restorer: ILayoutRestorer | null,
     labShell: ILabShell | null,
-    state: IStateDB | null
+    state: IStateDB | null,
+    editorServices: IEditorServices | null
   ): Promise<void> => {
     console.log(`JupyterLab extension ${PLUGIN_ID} is activated.`);
     try {
@@ -184,7 +193,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
         const editor = new QueryEditorWidget(
           sql,
           queryProjects(),
-          defaultProject
+          defaultProject,
+          editorServices
         );
         editor.id = id;
         editor.title.label = 'Query editor';

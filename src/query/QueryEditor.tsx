@@ -7,6 +7,18 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
+import { Prec } from '@codemirror/state';
+import {
+  EditorView,
+  keymap,
+  placeholder as cmPlaceholder
+} from '@codemirror/view';
+import {
+  CodeEditor,
+  CodeEditorWrapper,
+  IEditorServices
+} from '@jupyterlab/codeeditor';
+import { Widget } from '@lumino/widgets';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   cancelQuery,
@@ -67,11 +79,13 @@ export function QueryEditor({
   initialQuery,
   projects,
   defaultProject,
+  editorServices,
   onSqlChange
 }: {
   initialQuery?: string;
   projects: string[];
   defaultProject: string | null;
+  editorServices?: IEditorServices | null;
   onSqlChange?: (sql: string) => void;
 }): JSX.Element {
   const [sql, setSql] = useState(initialQuery ?? '');
@@ -87,6 +101,28 @@ export function QueryEditor({
   const [nextToken, setNextToken] = useState<string | null>(null);
   const jobRef = useRef<IJobRef | null>(null);
   const cancelRef = useRef(false);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<CodeEditor.IEditor | null>(null);
+  const runRef = useRef<() => void>(() => undefined);
+  const onSqlChangeRef = useRef(onSqlChange);
+  onSqlChangeRef.current = onSqlChange;
+
+  const useCodeMirror = !!editorServices;
+
+  // Return the text to run: the selection if there is one, else the whole doc.
+  // Reads the live editor (source of truth) via the abstract CodeEditor API.
+  const getQueryToRun = (): string => {
+    const ed = editorRef.current;
+    if (!ed) {
+      return sql;
+    }
+    const source = ed.model.sharedModel.getSource();
+    const sel = ed.getSelection();
+    const a = ed.getOffsetAt(sel.start);
+    const b = ed.getOffsetAt(sel.end);
+    const selected = source.slice(Math.min(a, b), Math.max(a, b));
+    return selected.trim() ? selected : source;
+  };
 
   // Live dry-run cost estimate (debounced) as the SQL or project changes.
   useEffect(() => {
@@ -125,7 +161,7 @@ export function QueryEditor({
     setStatus('Submitting…');
     const started = Date.now();
     try {
-      const job = await executeQuery(sql, project || undefined);
+      const job = await executeQuery(getQueryToRun(), project || undefined);
       jobRef.current = {
         jobId: job.jobId,
         projectId: job.projectId,
@@ -210,6 +246,63 @@ export function QueryEditor({
     }
   };
 
+  // Keep the keymap's run handler pointing at the latest closure without
+  // recreating the editor.
+  runRef.current = () => void run();
+
+  // Mount a CodeMirror 6 SQL editor (via the app's editor factory) once. React
+  // `sql` state becomes a mirror of the editor's document; the editor itself is
+  // the source of truth. Falls back to a plain textarea if IEditorServices is
+  // unavailable.
+  useEffect(() => {
+    if (!editorServices || !hostRef.current) {
+      return;
+    }
+    const model = new CodeEditor.Model({ mimeType: 'text/x-sql' });
+    model.sharedModel.setSource(initialQuery ?? '');
+    const wrapper = new CodeEditorWrapper({
+      model,
+      factory: editorServices.factoryService.newInlineEditor,
+      editorOptions: {
+        config: { lineNumbers: false },
+        extensions: [
+          Prec.highest(
+            keymap.of([
+              {
+                key: 'Mod-Enter',
+                run: () => {
+                  runRef.current();
+                  return true;
+                }
+              }
+            ])
+          ),
+          EditorView.lineWrapping,
+          EditorView.contentAttributes.of({ spellcheck: 'false' }),
+          cmPlaceholder(
+            'Write SQL, e.g. SELECT * FROM `project.dataset.table` LIMIT 100'
+          )
+        ]
+      }
+    });
+    editorRef.current = wrapper.editor;
+    Widget.attach(wrapper, hostRef.current);
+    // setSource above runs before this connect, so the initial value does not
+    // fire the mirror; only user edits do.
+    const onChanged = (): void => {
+      const text = model.sharedModel.getSource();
+      setSql(text);
+      onSqlChangeRef.current?.(text);
+    };
+    model.sharedModel.changed.connect(onChanged);
+    return () => {
+      model.sharedModel.changed.disconnect(onChanged);
+      editorRef.current = null;
+      wrapper.dispose();
+    };
+    // Create once. `sql` is intentionally not a dependency (it is a mirror).
+  }, []);
+
   return (
     <div className="bq-qe">
       <div className="bq-qe-toolbar">
@@ -245,16 +338,20 @@ export function QueryEditor({
         {estimate && <span className="bq-qe-estimate">{estimate}</span>}
         {status && <span className="bq-qe-status">{status}</span>}
       </div>
-      <textarea
-        className="bq-qe-sql"
-        spellCheck={false}
-        value={sql}
-        placeholder="Write SQL, e.g. SELECT * FROM `project.dataset.table` LIMIT 100"
-        onChange={e => {
-          setSql(e.target.value);
-          onSqlChange?.(e.target.value);
-        }}
-      />
+      {useCodeMirror ? (
+        <div className="bq-qe-sql bq-qe-cm" ref={hostRef} />
+      ) : (
+        <textarea
+          className="bq-qe-sql"
+          spellCheck={false}
+          value={sql}
+          placeholder="Write SQL, e.g. SELECT * FROM `project.dataset.table` LIMIT 100"
+          onChange={e => {
+            setSql(e.target.value);
+            onSqlChange?.(e.target.value);
+          }}
+        />
+      )}
       {runError ? (
         <div className="bq-qe-error">{runError}</div>
       ) : estimateError ? (
