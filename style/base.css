@@ -501,6 +501,19 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+.bq-qe-format {
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--jp-ui-font-color1);
+  background: var(--jp-layout-color2);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  font-size: var(--jp-ui-font-size1);
+}
+.bq-qe-format:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
 .bq-qe-project-label {
   display: inline-flex;
   align-items: center;
