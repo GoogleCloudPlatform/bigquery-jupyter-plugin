@@ -34,6 +34,7 @@ import {
   addIcon,
   columnIcon,
   datasetIcon,
+  historyIcon,
   iconForTableType,
   projectIcon,
   queryIcon,
@@ -448,6 +449,14 @@ function ExplorerTreeInner({
             onClick={() => actions.openQuery('')}
           >
             <queryIcon.react tag="span" width="18px" height="18px" />
+          </button>
+          <button
+            className="bq-icon-btn"
+            title="Query history"
+            aria-label="Query history"
+            onClick={() => actions.openHistory()}
+          >
+            <historyIcon.react tag="span" width="18px" height="18px" />
           </button>
           <button
             className="bq-icon-btn"
