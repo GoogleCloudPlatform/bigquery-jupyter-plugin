@@ -21,5 +21,6 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src/*", "src/**/*"]
+  "include": ["src/*", "src/**/*"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.tsx"]
 }

@@ -69,6 +69,7 @@
         "@jupyterlab/settingregistry": "^4.0.0",
         "@jupyterlab/statedb": "^4.0.0",
         "@jupyterlab/ui-components": "^4.0.0",
+        "@lumino/messaging": "^2",
         "@lumino/widgets": "^2.0.0",
         "@tanstack/react-query": "^5.0.0",
         "react": "^18.2.0",
@@ -78,6 +79,9 @@
     "devDependencies": {
         "@jupyterlab/builder": "^4.0.0",
         "@jupyterlab/testutils": "^4.0.0",
+        "@testing-library/dom": "^10",
+        "@testing-library/jest-dom": "^6",
+        "@testing-library/react": "^16",
         "@types/jest": "^29.2.0",
         "@types/json-schema": "^7.0.11",
         "@types/react": "^18.0.26",
@@ -144,6 +148,9 @@
         "**/*.d.ts",
         "tests",
         "**/__tests__",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "jest.setup.ts",
         "ui-tests"
     ],
     "eslintConfig": {
@@ -225,6 +232,7 @@
         ],
         "rules": {
             "csstree/validator": true,
+            "no-descending-specificity": null,
             "property-no-vendor-prefix": null,
             "selector-class-pattern": "^([a-z][A-z\\d]*)(-[A-z\\d]+)*$",
             "selector-no-vendor-prefix": null,

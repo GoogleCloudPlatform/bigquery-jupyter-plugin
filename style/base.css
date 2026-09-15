@@ -4,20 +4,24 @@
 .bq-explorer-widget {
   overflow: auto;
 }
+
 .bq-explorer {
   padding: 4px 6px;
   font-size: var(--jp-ui-font-size1);
   color: var(--jp-ui-font-color1);
 }
+
 .bq-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   padding: 4px 2px;
 }
+
 .bq-title {
   font-weight: 600;
 }
+
 .bq-principal {
   font-size: var(--jp-ui-font-size0);
   color: var(--jp-ui-font-color2);
@@ -26,6 +30,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .bq-add {
   display: flex;
   align-items: center;
@@ -36,9 +41,11 @@
   border-radius: 4px;
   background: var(--jp-input-background, var(--jp-layout-color1));
 }
+
 .bq-add:focus-within {
   border-color: var(--jp-brand-color1);
 }
+
 .bq-add-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -49,9 +56,11 @@
   font-family: var(--jp-ui-font-family);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-add-input::placeholder {
   color: var(--jp-ui-font-color3);
 }
+
 .bq-add-btn {
   display: inline-flex;
   align-items: center;
@@ -61,22 +70,27 @@
   cursor: pointer;
   padding: 0;
 }
+
 .bq-add-btn:disabled {
   cursor: default;
   opacity: 0.4;
 }
+
 .bq-add-btn svg {
   display: block;
 }
+
 .bq-tree,
 .bq-children {
   list-style: none;
   margin: 0;
   padding-left: 12px;
 }
+
 .bq-tree {
   padding-left: 0;
 }
+
 .bq-row {
   display: flex;
   align-items: center;
@@ -85,28 +99,35 @@
   border-radius: 2px;
   line-height: 1.4;
 }
+
 .bq-type-icon {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
 }
+
 .bq-type-icon svg {
   display: block;
 }
+
 .bq-row .bq-type-icon {
   margin-right: 6px;
 }
+
 .bq-row:hover {
   background: var(--jp-layout-color2);
 }
+
 .bq-caret {
   width: 12px;
   display: inline-block;
   color: var(--jp-ui-font-color2);
 }
+
 .bq-project .bq-label {
   font-weight: 500;
 }
+
 .bq-leaf {
   padding: 3px 4px 3px 2px;
   display: flex;
@@ -114,11 +135,13 @@
   gap: 6px;
   line-height: 1.4;
 }
+
 .bq-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .bq-badge {
   font-size: var(--jp-ui-font-size0);
   color: var(--jp-ui-font-color3);
@@ -126,17 +149,20 @@
   border-radius: 2px;
   padding: 0 3px;
 }
+
 /* Attribute pills (partitioned / clustered): a subtle brand-tinted accent so
    they read as properties of the table, distinct from the plain type badge. */
 .bq-badge-attr {
   color: var(--jp-brand-color1);
   border-color: var(--jp-brand-color1);
 }
+
 .bq-info {
   color: var(--jp-ui-font-color2);
   padding: 1px 14px;
   font-style: italic;
 }
+
 .bq-error {
   color: var(--jp-error-color1);
   padding: 1px 14px;
@@ -149,6 +175,7 @@
   padding: 1px 14px;
   font-style: italic;
 }
+
 .bq-more:hover {
   text-decoration: underline;
 }
@@ -156,6 +183,7 @@
 .bq-project {
   position: relative;
 }
+
 .bq-remove {
   margin-left: auto;
   border: none;
@@ -167,9 +195,11 @@
   padding: 0 4px;
   visibility: hidden;
 }
+
 .bq-row:hover .bq-remove {
   visibility: visible;
 }
+
 .bq-remove:hover {
   color: var(--jp-error-color1);
 }
@@ -189,17 +219,21 @@
   border-radius: 4px;
   background: var(--jp-input-background, var(--jp-layout-color1));
 }
+
 .bq-search:focus-within {
   border-color: var(--jp-brand-color1);
 }
+
 .bq-search-icon {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
 }
+
 .bq-search-icon svg {
   display: block;
 }
+
 .bq-search-input {
   flex: 1 1 auto;
   min-width: 0;
@@ -210,12 +244,15 @@
   font-family: var(--jp-ui-font-family);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-search-input::placeholder {
   color: var(--jp-ui-font-color3);
 }
+
 .bq-search-enable {
   padding: 12px;
 }
+
 /* Top-of-explorer banner when the BigQuery API is disabled on the project. */
 .bq-api-notice {
   margin: 8px 12px;
@@ -225,18 +262,21 @@
   border-radius: 4px;
   background: var(--jp-layout-color2);
 }
+
 .bq-search-note {
-  margin: 0 0 10px 0;
+  margin: 0 0 10px;
   color: var(--jp-ui-font-color1);
   font-size: var(--jp-ui-font-size1);
   line-height: 1.4;
 }
+
 .bq-search-note code {
   font-family: var(--jp-code-font-family);
   background: var(--jp-layout-color2);
   padding: 0 3px;
   border-radius: 3px;
 }
+
 .bq-enable-btn {
   padding: 4px 14px;
   cursor: pointer;
@@ -246,44 +286,50 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-enable-btn:disabled {
   cursor: default;
   opacity: 0.6;
 }
+
 .bq-search-error {
-  margin: 10px 0 0 0;
+  margin: 10px 0 0;
   color: var(--jp-error-color1);
   font-size: var(--jp-ui-font-size1);
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 /* Section header ("Datasets" / "Tables") in the search results panel. */
 .bq-search-section-label {
-  padding: 8px 12px 2px 12px;
+  padding: 8px 12px 2px;
   font-size: var(--jp-ui-font-size0);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--jp-ui-font-color2);
 }
+
 /* Muted caveat under a section (e.g. Dataplex catalog coverage note). */
 .bq-search-caveat {
   margin: 0;
-  padding: 0 12px 6px 12px;
+  padding: 0 12px 6px;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size0);
   line-height: 1.4;
   font-style: italic;
 }
+
 /* Matched-substring highlight in search results (dataset/table names). */
 .bq-hl {
   background: var(
     --jp-search-selected-match-background-color,
-    rgba(255, 213, 0, 0.4)
+    rgb(255 213 0 / 40%)
   );
   color: inherit;
   border-radius: 2px;
 }
+
 .bq-search-clear {
   display: inline-flex;
   align-items: center;
@@ -305,6 +351,7 @@
   align-items: center;
   gap: 2px;
 }
+
 .bq-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -316,17 +363,21 @@
   line-height: 1;
   padding: 0 4px;
 }
+
 .bq-icon-btn svg {
   display: block;
 }
+
 .bq-icon-btn:hover {
   color: var(--jp-ui-font-color1);
 }
+
 .bq-ctx-backdrop {
   position: fixed;
   inset: 0;
   z-index: 10000;
 }
+
 .bq-ctx-menu {
   position: fixed;
   z-index: 10001;
@@ -340,12 +391,14 @@
   border-radius: 3px;
   box-shadow: var(--jp-elevation-z6);
 }
+
 .bq-ctx-item {
   padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-ctx-item:hover {
   background: var(--jp-layout-color2);
 }
@@ -370,11 +423,13 @@
   gap: 12px;
   border-bottom: 1px solid var(--jp-border-color2);
 }
+
 .bq-dt-title {
   flex: 1 1 auto;
   padding: 8px 12px;
   word-break: break-all;
 }
+
 .bq-dt-query-btn {
   flex: 0 0 auto;
   margin-right: 12px;
@@ -387,6 +442,7 @@
   font-size: var(--jp-ui-font-size1);
   white-space: nowrap;
 }
+
 .bq-dt-query-btn:hover {
   background: var(--jp-brand-color0, var(--jp-brand-color1));
 }
@@ -542,6 +598,7 @@
   background: var(--jp-layout-color1);
   color: var(--jp-ui-font-color1);
 }
+
 .bq-qe {
   display: flex;
   flex-direction: column;
@@ -550,12 +607,14 @@
   box-sizing: border-box;
   gap: 8px;
 }
+
 .bq-qe-toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
   flex: 0 0 auto;
 }
+
 .bq-qe-run {
   padding: 4px 16px;
   cursor: pointer;
@@ -565,10 +624,12 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-run:disabled {
   cursor: default;
   opacity: 0.5;
 }
+
 .bq-qe-cancel {
   padding: 4px 12px;
   cursor: pointer;
@@ -578,6 +639,7 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-format {
   padding: 4px 12px;
   cursor: pointer;
@@ -587,10 +649,12 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-format:disabled {
   cursor: default;
   opacity: 0.5;
 }
+
 .bq-qe-project-label {
   display: inline-flex;
   align-items: center;
@@ -598,6 +662,7 @@
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-project {
   max-width: 240px;
   padding: 3px 4px;
@@ -607,15 +672,18 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-estimate {
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-status {
   margin-left: auto;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qe-sql {
   flex: 0 0 auto;
   width: 100%;
@@ -630,32 +698,37 @@
   font-family: var(--jp-code-font-family);
   font-size: var(--jp-code-font-size);
 }
+
 .bq-qe-sql:focus {
   outline: none;
   border-color: var(--jp-brand-color1);
 }
+
 .bq-qe-estimate-error {
   color: var(--jp-warn-color1);
   font-size: var(--jp-ui-font-size1);
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .bq-qe-error {
   padding: 8px 10px;
   color: var(--jp-error-color1);
-  background: var(--jp-error-color3, rgba(211, 47, 47, 0.1));
+  background: var(--jp-error-color3, rgb(211 47 47 / 10%));
   border: 1px solid var(--jp-error-color1);
   border-radius: 4px;
   font-size: var(--jp-ui-font-size1);
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .bq-qe-results {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
+
 .bq-qe-results .bq-dt-preview-scroll {
   flex: 1 1 auto;
 }
@@ -667,17 +740,20 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 4px 0 6px 0;
+  padding: 4px 0 6px;
   color: var(--jp-ui-font-color2);
 }
+
 .bq-dt-pager-info {
   white-space: nowrap;
 }
+
 .bq-dt-pager-controls {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
+
 .bq-dt-pager-size-label {
   display: inline-flex;
   align-items: center;
@@ -685,6 +761,7 @@
   margin-right: 8px;
   white-space: nowrap;
 }
+
 .bq-dt-pager-size {
   background: var(--jp-layout-color1);
   color: var(--jp-ui-font-color1);
@@ -692,6 +769,7 @@
   border-radius: 3px;
   padding: 2px 4px;
 }
+
 .bq-dt-pager-btn {
   min-width: 24px;
   padding: 2px 7px;
@@ -703,10 +781,12 @@
   font-size: var(--jp-ui-font-size1);
   line-height: 1.2;
 }
+
 .bq-dt-pager-btn:disabled {
   cursor: default;
   opacity: 0.5;
 }
+
 .bq-dt-pager-btn:not(:disabled):hover {
   background: var(--jp-layout-color3);
 }
@@ -717,12 +797,14 @@
   background: var(--jp-layout-color1);
   color: var(--jp-ui-font-color1);
 }
+
 .bq-qh {
   display: flex;
   flex-direction: column;
   height: 100%;
   box-sizing: border-box;
 }
+
 .bq-qh-toolbar {
   display: flex;
   align-items: center;
@@ -731,15 +813,18 @@
   border-bottom: 1px solid var(--jp-border-color2);
   flex: 0 0 auto;
 }
+
 .bq-qh-title {
   font-weight: 600;
 }
+
 .bq-qh-toolbar-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-left: auto;
 }
+
 .bq-qh-project {
   max-width: 220px;
   padding: 3px 4px;
@@ -749,28 +834,32 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qh-error {
   margin: 8px 12px;
   padding: 8px 10px;
   color: var(--jp-error-color1);
-  background: var(--jp-error-color3, rgba(211, 47, 47, 0.1));
+  background: var(--jp-error-color3, rgb(211 47 47 / 10%));
   border: 1px solid var(--jp-error-color1);
   border-radius: 4px;
   font-size: var(--jp-ui-font-size1);
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .bq-qh-empty {
   padding: 16px 12px;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qh-list {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   padding-bottom: 8px;
 }
+
 .bq-qh-daterow {
   position: sticky;
   top: 0;
@@ -781,6 +870,7 @@
   background: var(--jp-layout-color2);
   border-bottom: 1px solid var(--jp-border-color2);
 }
+
 .bq-qh-bar {
   display: flex;
   align-items: center;
@@ -789,23 +879,28 @@
   border-bottom: 1px solid var(--jp-border-color2);
   cursor: pointer;
 }
+
 .bq-qh-bar:hover {
   background: var(--jp-layout-color2);
 }
+
 .bq-qh-time {
   width: 62px;
   flex: 0 0 auto;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size0);
 }
+
 .bq-qh-status-ok {
   flex: 0 0 auto;
   color: var(--jp-success-color1, #388e3c);
 }
+
 .bq-qh-status-err {
   flex: 0 0 auto;
   color: var(--jp-error-color1);
 }
+
 .bq-qh-sql {
   flex: 1 1 auto;
   min-width: 0;
@@ -815,6 +910,7 @@
   font-family: var(--jp-code-font-family);
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qh-open {
   flex: 0 0 auto;
   padding: 2px 10px;
@@ -825,27 +921,31 @@
   border-radius: 3px;
   font-size: var(--jp-ui-font-size0);
 }
+
 .bq-qh-open:hover {
   border-color: var(--jp-brand-color1);
 }
+
 .bq-qh-detail {
-  padding: 8px 12px 12px 12px;
+  padding: 8px 12px 12px;
   background: var(--jp-layout-color0);
   border-bottom: 1px solid var(--jp-border-color2);
 }
+
 .bq-qh-detail-error {
   margin-bottom: 8px;
   padding: 6px 8px;
   color: var(--jp-error-color1);
-  background: var(--jp-error-color3, rgba(211, 47, 47, 0.1));
+  background: var(--jp-error-color3, rgb(211 47 47 / 10%));
   border: 1px solid var(--jp-error-color1);
   border-radius: 4px;
   font-size: var(--jp-ui-font-size1);
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .bq-qh-detail-sql {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   padding: 8px;
   max-height: 200px;
   overflow: auto;
@@ -858,6 +958,7 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
 .bq-qh-meta {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -865,22 +966,27 @@
   margin: 0;
   font-size: var(--jp-ui-font-size1);
 }
+
 .bq-qh-meta dt {
   color: var(--jp-ui-font-color2);
 }
+
 .bq-qh-meta dd {
   margin: 0;
   color: var(--jp-ui-font-color1);
 }
+
 .bq-qh-jobid {
   font-family: var(--jp-code-font-family);
   word-break: break-all;
 }
+
 .bq-qh .bq-dt-more {
   margin: 8px 12px;
 }
 
 /* ---- CodeMirror-backed SQL editor (query editor) ---- */
+
 /* Used when IEditorServices is available; the .bq-qe-sql box supplies the
    border/min-height/resize, CodeMirror owns the inner styling + theme. */
 .bq-qe-cm {
@@ -888,9 +994,11 @@
   padding: 0;
   overflow: hidden;
 }
+
 .bq-qe-cm .cm-editor {
   height: 100%;
 }
+
 .bq-qe-cm .cm-editor.cm-focused {
   outline: none;
 }

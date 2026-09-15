@@ -4,3 +4,12 @@ node_modules
 **/package.json
 !/package.json
 bigquery_jupyter_plugin
+.venv
+venv
+coverage
+dist
+.yarn
+.pytest_cache
+__pycache__
+*.egg-info
+CODE_OF_CONDUCT.md
