@@ -19,17 +19,24 @@ const queryClient = new QueryClient({
 
 export class TableDetailsWidget extends ReactWidget {
   private _tref: ITableRef;
+  private _onQuery?: (sql: string) => void;
 
-  constructor(tref: ITableRef) {
+  constructor(tref: ITableRef, onQuery?: (sql: string) => void) {
     super();
     this._tref = tref;
+    this._onQuery = onQuery;
     this.addClass('bq-details-widget');
+  }
+
+  /** The table this panel describes (for layout restoration). */
+  get ref(): ITableRef {
+    return this._tref;
   }
 
   render(): JSX.Element {
     return (
       <QueryClientProvider client={queryClient}>
-        <TableDetails tref={this._tref} />
+        <TableDetails tref={this._tref} onQuery={this._onQuery} />
       </QueryClientProvider>
     );
   }

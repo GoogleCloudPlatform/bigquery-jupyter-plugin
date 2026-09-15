@@ -16,24 +16,32 @@ export interface ITableRef {
   tableType: string;
 }
 
-export type OpenTable = (ref: ITableRef) => void;
+export interface ITableActions {
+  openDetails: (ref: ITableRef) => void;
+  openQuery: (sql: string) => void;
+}
 
-const TableActionsContext = createContext<OpenTable>(() => undefined);
+const noop = (): void => undefined;
+
+const TableActionsContext = createContext<ITableActions>({
+  openDetails: noop,
+  openQuery: noop
+});
 
 export function TableActionsProvider({
-  open,
+  actions,
   children
 }: {
-  open: OpenTable;
+  actions: ITableActions;
   children: React.ReactNode;
 }): JSX.Element {
   return (
-    <TableActionsContext.Provider value={open}>
+    <TableActionsContext.Provider value={actions}>
       {children}
     </TableActionsContext.Provider>
   );
 }
 
-export function useOpenTable(): OpenTable {
+export function useTableActions(): ITableActions {
   return useContext(TableActionsContext);
 }

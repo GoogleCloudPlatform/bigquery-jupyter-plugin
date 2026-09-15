@@ -250,7 +250,13 @@ function QueryTab({ meta }: { meta: ITableMeta }): JSX.Element {
   return <pre className="bq-dt-query">{meta.viewQuery}</pre>;
 }
 
-export function TableDetails({ tref }: { tref: ITableRef }): JSX.Element {
+export function TableDetails({
+  tref,
+  onQuery
+}: {
+  tref: ITableRef;
+  onQuery?: (sql: string) => void;
+}): JSX.Element {
   const previewable = canPreview(tref.tableType);
   const isView = tref.tableType.toUpperCase() === 'VIEW';
   const reason = previewable ? null : noPreviewReason(tref.tableType);
@@ -271,10 +277,23 @@ export function TableDetails({ tref }: { tref: ITableRef }): JSX.Element {
     tabs.push(['query', 'Query']);
   }
 
+  const fqId = `${tref.projectId}.${tref.datasetId}.${tref.tableId}`;
+
   return (
     <div className="bq-dt">
-      <div className="bq-dt-title">
-        {tref.projectId}.{tref.datasetId}.<b>{tref.tableId}</b>
+      <div className="bq-dt-header">
+        <div className="bq-dt-title">
+          {tref.projectId}.{tref.datasetId}.<b>{tref.tableId}</b>
+        </div>
+        {onQuery && (
+          <button
+            className="bq-dt-query-btn"
+            title="Open a query editor for this table"
+            onClick={() => onQuery(`SELECT * FROM \`${fqId}\` LIMIT 1000`)}
+          >
+            Query table
+          </button>
+        )}
       </div>
       <div className="bq-dt-tabs">
         {tabs.map(([id, label]) => (

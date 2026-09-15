@@ -63,6 +63,7 @@
         "@jupyterlab/launcher": "^4.0.0",
         "@jupyterlab/services": "^7.0.0",
         "@jupyterlab/settingregistry": "^4.0.0",
+        "@jupyterlab/statedb": "^4.0.0",
         "@jupyterlab/ui-components": "^4.0.0",
         "@tanstack/react-query": "^5.0.0",
         "react": "^18.2.0",
