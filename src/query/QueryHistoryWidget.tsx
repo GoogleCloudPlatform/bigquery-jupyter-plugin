@@ -8,6 +8,7 @@
  */
 
 import { ReactWidget } from '@jupyterlab/apputils';
+import { Message } from '@lumino/messaging';
 import React from 'react';
 import { QueryHistory } from './QueryHistory';
 
@@ -15,6 +16,8 @@ export class QueryHistoryWidget extends ReactWidget {
   private _projects: string[];
   private _defaultProject: string | null;
   private _openQuery: (sql: string) => void;
+  private _reload: (() => void) | null = null;
+  private _shownOnce = false;
 
   constructor(
     projects: string[],
@@ -28,12 +31,26 @@ export class QueryHistoryWidget extends ReactWidget {
     this.addClass('bq-qh-widget');
   }
 
+  // Re-fetch whenever the panel becomes visible again (e.g. the user switches
+  // back to this tab after running a query), so newly-run jobs show up without a
+  // manual refresh. The initial show is skipped -- the component loads on mount.
+  protected onAfterShow(msg: Message): void {
+    super.onAfterShow(msg);
+    if (this._shownOnce) {
+      this._reload?.();
+    }
+    this._shownOnce = true;
+  }
+
   render(): JSX.Element {
     return (
       <QueryHistory
         projects={this._projects}
         defaultProject={this._defaultProject}
         openQuery={this._openQuery}
+        registerReload={fn => {
+          this._reload = fn;
+        }}
       />
     );
   }

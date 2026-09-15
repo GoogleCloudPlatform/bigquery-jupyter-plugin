@@ -1,0 +1,18 @@
+{
+  "name": "bigquery_jupyter_plugin-ui-tests",
+  "version": "1.0.0",
+  "description": "JupyterLab bigquery_jupyter_plugin Integration Tests",
+  "private": true,
+  "scripts": {
+    "start": "jupyter lab --config jupyter_server_test_config.py",
+    "test": "jlpm playwright test",
+    "test:update": "jlpm playwright test --update-snapshots"
+  },
+  "devDependencies": {
+    "@jupyterlab/galata": "^5.0.0",
+    "@playwright/test": "^1.60.0"
+  },
+  "resolutions": {
+    "@playwright/test": "^1.60.0"
+  }
+}

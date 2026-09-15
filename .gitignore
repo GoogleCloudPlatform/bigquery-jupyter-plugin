@@ -5,6 +5,7 @@ wheels/
 __pycache__
 bigquery_jupyter_plugin/labextension
 .coverage
+coverage/
 
 # Used on OSX to track metadata about folders
 .DS_Store

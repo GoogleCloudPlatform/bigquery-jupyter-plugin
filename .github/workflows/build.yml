@@ -1,0 +1,102 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['*']
+
+# Least-privilege token: these jobs only read the repo.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20.x'
+
+      - name: Install build/test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "jupyterlab>=4.0,<5" build
+          pip install ".[test]"
+
+      - name: Backend tests (pytest)
+        run: python -m pytest bigquery_jupyter_plugin/tests -v
+
+      - name: Install JS dependencies
+        run: jlpm install --immutable
+
+      - name: Lint check (prettier / eslint / stylelint)
+        run: jlpm lint:check
+
+      - name: Frontend tests (jest)
+        run: jlpm test
+
+      - name: Build the extension (prod) + wheel/sdist
+        run: |
+          jlpm build:prod
+          python -m build
+
+      - name: Verify a clean install registers the extension
+        run: |
+          pip install --force-reinstall --no-deps dist/*.whl
+          jupyter labextension list 2>&1 | grep -i "bigquery-jupyter-plugin.*enabled.*OK"
+          # `server extension list` prints "enabled" and "OK" on separate lines.
+          jupyter server extension list 2>&1 | grep -i "bigquery_jupyter_plugin.*OK"
+
+  integration:
+    name: Integration tests (Galata)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20.x'
+
+      - name: Install the extension
+        run: |
+          python -m pip install --upgrade pip
+          pip install "jupyterlab>=4.0,<5"
+          pip install .
+
+      - name: Install UI-test dependencies
+        working-directory: ui-tests
+        run: |
+          jlpm install
+          jlpm playwright install chromium --with-deps
+
+      - name: Run Galata tests
+        working-directory: ui-tests
+        run: jlpm test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: ui-tests/playwright-report/
+          retention-days: 7

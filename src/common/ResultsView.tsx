@@ -9,21 +9,10 @@
 
 import React from 'react';
 import { ISchemaField, PreviewCell } from '../explorer/api';
+import { formatCell } from './format';
 
 // Shared page sizes for every result/preview grid.
 export const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 500];
-
-// Render a typed cell as display text: null as literal "null", objects (nested
-// RECORD / REPEATED) as JSON, everything else stringified.
-export function formatCell(value: PreviewCell): string {
-  if (value === null || value === undefined) {
-    return 'null';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
 
 // A results grid: a leading "#" row-number column (offset by startIndex so
 // numbers stay absolute across pages) then one column per schema field.

@@ -7,8 +7,9 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { IQueryHistoryJob, listQueryHistory } from '../explorer/api';
+import { oneLine } from '../common/format';
 
 const PAGE_SIZE = 50;
 
@@ -79,27 +80,18 @@ function timeLabel(iso: string | null): string {
     : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Condense a query to a single readable line for the history row. Taking the
-// literal first line would show just "SELECT" for anything run through the
-// Format button (sql-formatter puts SELECT on its own line), so collapse every
-// run of whitespace/newlines to a single space instead. The full text stays in
-// the row tooltip and the expanded detail view.
-function oneLine(sql: string | null): string {
-  if (!sql) {
-    return '(no SQL)';
-  }
-  const line = sql.trim().replace(/\s+/g, ' ');
-  return line.length > 120 ? `${line.slice(0, 120)}…` : line;
-}
-
 export function QueryHistory({
   projects,
   defaultProject,
-  openQuery
+  openQuery,
+  registerReload
 }: {
   projects: string[];
   defaultProject: string | null;
   openQuery: (sql: string) => void;
+  // Lets the host widget trigger a refetch (e.g. when the tab is re-shown), so
+  // queries run since the panel opened appear without a manual refresh.
+  registerReload?: (reload: (() => void) | null) => void;
 }): JSX.Element {
   const [project, setProject] = useState(defaultProject ?? projects[0] ?? '');
   const [jobs, setJobs] = useState<IQueryHistoryJob[]>([]);
@@ -128,6 +120,15 @@ export function QueryHistory({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Expose the latest load() to the host widget via a stable callback, so a
+  // re-show can refresh without re-mounting the component.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  useEffect(() => {
+    registerReload?.(() => void loadRef.current());
+    return () => registerReload?.(null);
+  }, [registerReload]);
 
   const loadMore = async (): Promise<void> => {
     if (!nextToken) {
