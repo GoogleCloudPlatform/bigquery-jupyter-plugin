@@ -8,6 +8,7 @@
  */
 
 import { ReactWidget } from '@jupyterlab/apputils';
+import { IEditorServices } from '@jupyterlab/codeeditor';
 import React from 'react';
 import { QueryEditor } from './QueryEditor';
 
@@ -15,6 +16,7 @@ export class QueryEditorWidget extends ReactWidget {
   private _sql: string;
   private _projects: string[];
   private _defaultProject: string | null;
+  private _editorServices: IEditorServices | null;
   private _saveTimer: number | null = null;
 
   /** Set by the extension so edits can be persisted for layout restoration. */
@@ -23,12 +25,14 @@ export class QueryEditorWidget extends ReactWidget {
   constructor(
     initialQuery = '',
     projects: string[] = [],
-    defaultProject: string | null = null
+    defaultProject: string | null = null,
+    editorServices: IEditorServices | null = null
   ) {
     super();
     this._sql = initialQuery;
     this._projects = projects;
     this._defaultProject = defaultProject;
+    this._editorServices = editorServices;
     this.addClass('bq-qe-widget');
   }
 
@@ -54,6 +58,7 @@ export class QueryEditorWidget extends ReactWidget {
         initialQuery={this._sql}
         projects={this._projects}
         defaultProject={this._defaultProject}
+        editorServices={this._editorServices}
         onSqlChange={this._onSqlChange}
       />
     );

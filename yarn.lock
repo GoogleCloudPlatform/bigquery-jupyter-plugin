@@ -1473,7 +1473,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/lang-sql@npm:^6.10.0":
+"@codemirror/lang-sql@npm:^6.0.0, @codemirror/lang-sql@npm:^6.10.0":
   version: 6.10.0
   resolution: "@codemirror/lang-sql@npm:6.10.0"
   dependencies:
@@ -2225,7 +2225,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/codeeditor@npm:^4.6.3":
+"@jupyterlab/codeeditor@npm:^4.0.0, @jupyterlab/codeeditor@npm:^4.6.3":
   version: 4.6.3
   resolution: "@jupyterlab/codeeditor@npm:4.6.3"
   dependencies:
@@ -3049,7 +3049,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/widgets@npm:^1.37.2 || ^2.8.0, @lumino/widgets@npm:^2.7.5, @lumino/widgets@npm:^2.8.0, @lumino/widgets@npm:^2.9.0":
+"@lumino/widgets@npm:^1.37.2 || ^2.8.0, @lumino/widgets@npm:^2.0.0, @lumino/widgets@npm:^2.7.5, @lumino/widgets@npm:^2.8.0, @lumino/widgets@npm:^2.9.0":
   version: 2.9.0
   resolution: "@lumino/widgets@npm:2.9.0"
   dependencies:
@@ -4529,9 +4529,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bigquery-jupyter-plugin@workspace:."
   dependencies:
+    "@codemirror/lang-sql": ^6.0.0
+    "@codemirror/state": ^6.0.0
+    "@codemirror/view": ^6.0.0
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/apputils": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
+    "@jupyterlab/codeeditor": ^4.0.0
     "@jupyterlab/coreutils": ^6.0.0
     "@jupyterlab/launcher": ^4.0.0
     "@jupyterlab/services": ^7.0.0
@@ -4539,6 +4543,7 @@ __metadata:
     "@jupyterlab/statedb": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
     "@jupyterlab/ui-components": ^4.0.0
+    "@lumino/widgets": ^2.0.0
     "@tanstack/react-query": ^5.0.0
     "@types/jest": ^29.2.0
     "@types/json-schema": ^7.0.11

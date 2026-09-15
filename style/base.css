@@ -735,3 +735,18 @@
 .bq-qh .bq-dt-more {
   margin: 8px 12px;
 }
+
+/* ---- CodeMirror-backed SQL editor (query editor) ---- */
+/* Used when IEditorServices is available; the .bq-qe-sql box supplies the
+   border/min-height/resize, CodeMirror owns the inner styling + theme. */
+.bq-qe-cm {
+  height: 260px;
+  padding: 0;
+  overflow: hidden;
+}
+.bq-qe-cm .cm-editor {
+  height: 100%;
+}
+.bq-qe-cm .cm-editor.cm-focused {
+  outline: none;
+}
