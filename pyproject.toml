@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bigquery_jupyter_plugin"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = { file = "third-party-licenses.txt" }
 requires-python = ">=3.8"
 classifiers = [
     "Framework :: Jupyter",
@@ -41,7 +41,11 @@ test = [
 source = "nodejs"
 
 [tool.hatch.metadata.hooks.nodejs]
-fields = ["description", "authors", "urls"]
+fields = ["description", "authors", "urls", "keywords"]
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["bigquery_jupyter_plugin/labextension"]
+exclude = [".github", "binder"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "bigquery_jupyter_plugin/labextension" = "share/jupyter/labextensions/bigquery-jupyter-plugin"
