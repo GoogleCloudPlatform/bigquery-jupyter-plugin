@@ -117,6 +117,7 @@ export function QueryEditor({
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<CodeEditor.IEditor | null>(null);
   const runRef = useRef<() => void>(() => undefined);
+  const formatRef = useRef<() => void>(() => undefined);
   const onSqlChangeRef = useRef(onSqlChange);
   onSqlChangeRef.current = onSqlChange;
 
@@ -259,9 +260,45 @@ export function QueryEditor({
     }
   };
 
-  // Keep the keymap's run handler pointing at the latest closure without
-  // recreating the editor.
+  // Pretty-print the whole query with sql-formatter (BigQuery dialect). Reads
+  // from the editor (or `sql` in the textarea fallback), reformats, and writes
+  // back -- which flows through the mirror to update state / dry-run. On a parse
+  // error the text is left unchanged and the message is shown non-destructively.
+  const formatSql = async (): Promise<void> => {
+    const model = editorRef.current?.model;
+    const current = model ? model.sharedModel.getSource() : sql;
+    if (!current.trim()) {
+      return;
+    }
+    let formatted: string;
+    try {
+      // Loaded on demand: sql-formatter is ~600 KiB, so keep it out of the
+      // initial bundle and only fetch it when the user actually formats.
+      const { formatDialect, bigquery } = await import('sql-formatter');
+      formatted = formatDialect(current, {
+        dialect: bigquery,
+        keywordCase: 'upper',
+        tabWidth: 2
+      });
+    } catch (e) {
+      setEstimateError(`Could not format SQL: ${errorMessage(e)}`);
+      return;
+    }
+    if (formatted === current) {
+      return;
+    }
+    if (model) {
+      model.sharedModel.setSource(formatted);
+    } else {
+      setSql(formatted);
+      onSqlChange?.(formatted);
+    }
+  };
+
+  // Keep the keymap handlers pointing at the latest closures without recreating
+  // the editor.
   runRef.current = () => void run();
+  formatRef.current = () => void formatSql();
 
   // Mount a CodeMirror 6 SQL editor (via the app's editor factory) once. React
   // `sql` state becomes a mirror of the editor's document; the editor itself is
@@ -291,6 +328,13 @@ export function QueryEditor({
                 key: 'Mod-Enter',
                 run: () => {
                   runRef.current();
+                  return true;
+                }
+              },
+              {
+                key: 'Shift-Alt-f',
+                run: () => {
+                  formatRef.current();
                   return true;
                 }
               }
@@ -337,6 +381,14 @@ export function QueryEditor({
             Cancel
           </button>
         )}
+        <button
+          className="bq-qe-format"
+          onClick={() => void formatSql()}
+          disabled={running || !sql.trim()}
+          title="Format SQL (Shift+Alt+F)"
+        >
+          Format
+        </button>
         {projects.length > 0 && (
           <label className="bq-qe-project-label">
             Project:
