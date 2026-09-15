@@ -37,14 +37,21 @@ Clean up all the development files from your local repo before building the pack
 git clean -dfX
 ```
 
-To create a Python source package (`.tar.gz`) in the `dist/` directory, do:
+Build both the wheel (`.whl`) and the source distribution (`.tar.gz`) into the
+`dist/` directory:
 
 ```bash
-python -m build --sdist
+python -m build
 ```
 
-Then to upload the package to PyPI, do:
+> **Publish the wheel, not just the sdist.** This is a prebuilt (source)
+> JupyterLab extension: the wheel bundles the compiled labextension assets
+> (under `share/jupyter/labextensions/`), so `pip install` works with no Node.js
+> toolchain. The sdist contains only source, so installing from it alone would
+> require building the frontend at install time.
+
+Then upload both artifacts to PyPI:
 
 ```bash
-python -m twine upload dist/bigquery_jupyter_plugin-*.tar.gz
+python -m twine upload dist/bigquery_jupyter_plugin-*
 ```
