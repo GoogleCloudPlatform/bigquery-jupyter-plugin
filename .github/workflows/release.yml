@@ -1,0 +1,75 @@
+name: Release
+
+# On every push to main, release-please maintains a "release PR" that bumps the
+# version (from Conventional Commit messages) and updates the changelog. When
+# that release PR is merged, release-please tags the release, and the publish
+# job below builds the wheel/sdist and uploads them to PyPI via Trusted
+# Publishing (OIDC -- no stored tokens).
+on:
+  push:
+    branches: [main]
+
+# Least-privilege by default; each job opts into exactly what it needs.
+permissions: {}
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release commit, tag, and GitHub Release
+      pull-requests: write # open/update the release PR
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: Build & publish to PyPI
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bigquery-jupyter-plugin
+    permissions:
+      contents: read
+      id-token: write # mint the OIDC token for PyPI Trusted Publishing
+    steps:
+      - name: Checkout the released tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20.x'
+
+      # Builds the sdist and the wheel. The wheel bundles the prebuilt
+      # labextension (via the hatch-jupyter-builder hook), so `pip install`
+      # needs no Node toolchain.
+      - name: Build wheel + sdist
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+          python -m build
+
+      # No username/password/token: the action exchanges the GitHub OIDC token
+      # for a short-lived, project-scoped PyPI token. Requires a Trusted
+      # Publisher registered on the PyPI project for this repo + workflow +
+      # environment ("pypi").
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
