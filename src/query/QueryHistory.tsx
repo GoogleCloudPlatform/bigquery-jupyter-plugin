@@ -79,11 +79,16 @@ function timeLabel(iso: string | null): string {
     : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function firstLine(sql: string | null): string {
+// Condense a query to a single readable line for the history row. Taking the
+// literal first line would show just "SELECT" for anything run through the
+// Format button (sql-formatter puts SELECT on its own line), so collapse every
+// run of whitespace/newlines to a single space instead. The full text stays in
+// the row tooltip and the expanded detail view.
+function oneLine(sql: string | null): string {
   if (!sql) {
     return '(no SQL)';
   }
-  const line = sql.trim().split('\n')[0];
+  const line = sql.trim().replace(/\s+/g, ' ');
   return line.length > 120 ? `${line.slice(0, 120)}…` : line;
 }
 
@@ -214,7 +219,7 @@ export function QueryHistory({
                       {job.errored ? '\u2717' : '\u2713'}
                     </span>
                     <span className="bq-qh-sql" title={job.query ?? ''}>
-                      {firstLine(job.query)}
+                      {oneLine(job.query)}
                     </span>
                     <button
                       className="bq-qh-open"

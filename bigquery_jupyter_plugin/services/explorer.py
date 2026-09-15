@@ -72,5 +72,16 @@ def list_tables(project_id, dataset_id, page_token=None, page_size=_DEFAULT_PAGE
     ref = bigquery.DatasetReference(project_id, dataset_id)
     it = client.list_tables(ref, max_results=page_size, page_token=page_token or None)
     items, token = _first_page(it)
-    tables = [{"id": t.table_id, "type": t.table_type} for t in items]
+    # partitioned/clustered come free from the list response (TableListItem),
+    # so the tree can badge them without a per-table get_table call. Note: only
+    # time partitioning is exposed here; range-partitioned tables aren't flagged.
+    tables = [
+        {
+            "id": t.table_id,
+            "type": t.table_type,
+            "partitioned": bool(t.time_partitioning or t.partitioning_type),
+            "clustered": bool(t.clustering_fields),
+        }
+        for t in items
+    ]
     return {"tables": tables, "nextPageToken": token}

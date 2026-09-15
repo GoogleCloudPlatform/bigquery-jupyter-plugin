@@ -70,17 +70,24 @@ def get_query_results(
     job_id,
     project_id=None,
     location=None,
-    page_token=None,
+    start_index=0,
     max_results=_DEFAULT_PAGE_SIZE,
 ):
     """Return one page of a job's results, or its state if not yet finished.
 
     While the job is still running, returns ``{state, ...}`` with empty rows so
-    the frontend can poll. Once ``DONE``: the first page comes from
-    ``job.result()`` (which raises on a failed query, mapped by the handler to a
-    real HTTP status); subsequent pages read the job's destination table via
-    ``tabledata.list`` (free), which -- unlike ``job.result()`` -- accepts a
-    page token to resume.
+    the frontend can poll. Once ``DONE``, ``start_index`` selects the row offset,
+    so the UI can jump to any page (first/prev/next/last) rather than only
+    appending:
+
+    * ``start_index == 0`` uses ``job.result()``, which raises on a failed query
+      (mapped by the handler to a real HTTP status) and also handles non-SELECT
+      statements that have no destination table.
+    * ``start_index > 0`` reads the finished query's destination table via
+      ``tabledata.list`` (free), which accepts a start offset for random access.
+
+    ``totalRows`` is the full result-set size (independent of the page), which
+    the UI uses to compute the page count and enable the last-page jump.
     """
     client = _bq_client.get_bq_client(project=project_id)
     job = client.get_job(job_id, project=project_id or None, location=location or None)
@@ -90,19 +97,19 @@ def get_query_results(
             "schema": [],
             "rows": [],
             "totalRows": None,
-            "nextPageToken": None,
+            "startIndex": start_index,
         }
-    if page_token:
+    if start_index:
         row_iter = client.list_rows(
-            job.destination, max_results=max_results, page_token=page_token
+            job.destination, start_index=start_index, max_results=max_results
         )
     else:
         row_iter = job.result(page_size=max_results)
-    rows, schema, total_rows, next_token = _first_page(row_iter)
+    rows, schema, total_rows, _ = _first_page(row_iter)
     return {
         "state": "DONE",
         "schema": _schema_to_json(schema),
         "rows": rows,
         "totalRows": total_rows,
-        "nextPageToken": next_token,
+        "startIndex": start_index,
     }
