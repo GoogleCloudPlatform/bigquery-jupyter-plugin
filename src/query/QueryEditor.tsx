@@ -30,6 +30,7 @@ import {
   ISchemaField,
   PreviewCell
 } from '../explorer/api';
+import { PagerBar, ResultsGrid } from '../common/ResultsView';
 
 const PAGE_SIZE = 100;
 const POLL_MS = 800;
@@ -74,16 +75,6 @@ function humanBytes(n?: number | null): string {
   return `${i === 0 ? value : value.toFixed(1)} ${units[i]}`;
 }
 
-function formatCell(value: PreviewCell): string {
-  if (value === null || value === undefined) {
-    return 'null';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -111,7 +102,12 @@ export function QueryEditor({
   const [columns, setColumns] = useState<ISchemaField[]>([]);
   const [rows, setRows] = useState<PreviewCell[][]>([]);
   const [totalRows, setTotalRows] = useState<number | null>(null);
-  const [nextToken, setNextToken] = useState<string | null>(null);
+  // Results pagination: `page` (0-based) and `pageSize` drive a random-access
+  // fetch (startIndex = page * pageSize); `paging` disables the controls while a
+  // page is loading.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [paging, setPaging] = useState(false);
   const jobRef = useRef<IJobRef | null>(null);
   const cancelRef = useRef(false);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -169,7 +165,7 @@ export function QueryEditor({
     setRows([]);
     setColumns([]);
     setTotalRows(null);
-    setNextToken(null);
+    setPage(0);
     cancelRef.current = false;
     setRunning(true);
     setStatus('Submitting…');
@@ -191,8 +187,8 @@ export function QueryEditor({
           job.jobId,
           job.projectId,
           job.location,
-          null,
-          PAGE_SIZE
+          0,
+          pageSize
         );
         if (res.state === 'DONE') {
           break;
@@ -212,7 +208,7 @@ export function QueryEditor({
       setColumns(res.schema);
       setRows(res.rows);
       setTotalRows(res.totalRows);
-      setNextToken(res.nextPageToken ?? null);
+      setPage(0);
       setStatus(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
     } catch (e) {
       if (!cancelRef.current) {
@@ -241,22 +237,31 @@ export function QueryEditor({
     setStatus('Cancelled');
   };
 
-  const loadMore = async (): Promise<void> => {
-    if (!jobRef.current || !nextToken) {
+  // Fetch an arbitrary results page (random access via startIndex) and replace
+  // the grid. Used by the first/prev/next/last controls and the page-size menu.
+  const fetchPage = async (newPage: number, size: number): Promise<void> => {
+    if (!jobRef.current) {
       return;
     }
+    setPaging(true);
     try {
       const res = await getQueryResults(
         jobRef.current.jobId,
         jobRef.current.projectId,
         jobRef.current.location,
-        nextToken,
-        PAGE_SIZE
+        newPage * size,
+        size
       );
-      setRows(prev => [...prev, ...res.rows]);
-      setNextToken(res.nextPageToken ?? null);
+      setRows(res.rows);
+      if (res.totalRows !== null) {
+        setTotalRows(res.totalRows);
+      }
+      setPage(newPage);
+      setPageSize(size);
     } catch (e) {
       setRunError(errorMessage(e));
+    } finally {
+      setPaging(false);
     }
   };
 
@@ -430,42 +435,20 @@ export function QueryEditor({
       ) : null}
       {columns.length > 0 && (
         <div className="bq-qe-results">
-          <div className="bq-dt-preview-info">
-            {rows.length.toLocaleString()}
-            {totalRows !== null ? ` of ${totalRows.toLocaleString()}` : ''} rows
-          </div>
-          <div className="bq-dt-preview-scroll">
-            <table className="bq-dt-table bq-dt-grid">
-              <thead>
-                <tr>
-                  <th className="bq-dt-rownum">#</th>
-                  {columns.map(c => (
-                    <th key={c.name}>{c.name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, r) => (
-                  <tr key={r}>
-                    <td className="bq-dt-rownum">{r + 1}</td>
-                    {row.map((cell, c) => (
-                      <td
-                        key={c}
-                        className={cell === null ? 'bq-dt-null' : undefined}
-                      >
-                        {formatCell(cell)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {nextToken && (
-            <button className="bq-dt-more" onClick={loadMore}>
-              Load more
-            </button>
-          )}
+          <PagerBar
+            page={page}
+            pageSize={pageSize}
+            totalRows={totalRows}
+            rowsOnPage={rows.length}
+            busy={paging || running}
+            onPage={p => void fetchPage(p, pageSize)}
+            onPageSize={s => void fetchPage(0, s)}
+          />
+          <ResultsGrid
+            columns={columns}
+            rows={rows}
+            startIndex={page * pageSize}
+          />
         </div>
       )}
     </div>

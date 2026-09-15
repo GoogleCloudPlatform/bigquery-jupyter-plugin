@@ -24,6 +24,8 @@ export interface IDataset {
 export interface ITable {
   id: string;
   type: string;
+  partitioned?: boolean;
+  clustered?: boolean;
 }
 
 export interface IDatasetPage {
@@ -149,7 +151,7 @@ export interface IQueryResults {
   schema: ISchemaField[];
   rows: PreviewCell[][];
   totalRows: number | null;
-  nextPageToken?: string | null;
+  startIndex?: number;
 }
 
 export function dryRun(query: string, projectId?: string): Promise<IDryRun> {
@@ -174,18 +176,19 @@ export function getQueryResults(
   jobId: string,
   projectId: string | null,
   location: string | null,
-  pageToken: string | null,
+  startIndex: number,
   maxResults: number
 ): Promise<IQueryResults> {
-  const params = new URLSearchParams({ jobId, maxResults: String(maxResults) });
+  const params = new URLSearchParams({
+    jobId,
+    maxResults: String(maxResults),
+    startIndex: String(startIndex)
+  });
   if (projectId) {
     params.set('projectId', projectId);
   }
   if (location) {
     params.set('location', location);
-  }
-  if (pageToken) {
-    params.set('pageToken', pageToken);
   }
   return requestAPI(`queryResults?${params.toString()}`);
 }
@@ -237,4 +240,63 @@ export function listQueryHistory(
     params.set('pageToken', pageToken);
   }
   return requestAPI(`queryHistory?${params.toString()}`);
+}
+
+export interface ISearchResult {
+  projectId: string;
+  datasetId: string;
+  tableId: string | null;
+  type: string;
+}
+
+export interface ISearchPage {
+  results: ISearchResult[];
+  partial: boolean;
+}
+
+export interface IServiceStatus {
+  enabled: boolean;
+  state?: string | null;
+}
+
+export function searchTables(
+  projectId: string,
+  term: string,
+  projects: string[]
+): Promise<ISearchPage> {
+  const params = new URLSearchParams({ project_id: projectId, term });
+  if (projects.length) {
+    params.set('projects', projects.join(','));
+  }
+  return requestAPI(`searchTables?${params.toString()}`);
+}
+
+export function dataplexStatus(projectId: string): Promise<IServiceStatus> {
+  return requestAPI(
+    `dataplexStatus?project_id=${encodeURIComponent(projectId)}`
+  );
+}
+
+export function enableDataplex(
+  projectId: string
+): Promise<{ requested: boolean; done: boolean }> {
+  return requestAPI('enableDataplex', {
+    method: 'POST',
+    body: JSON.stringify({ projectId })
+  });
+}
+
+export function bigqueryStatus(projectId: string): Promise<IServiceStatus> {
+  return requestAPI(
+    `bigqueryStatus?project_id=${encodeURIComponent(projectId)}`
+  );
+}
+
+export function enableBigquery(
+  projectId: string
+): Promise<{ requested: boolean; done: boolean }> {
+  return requestAPI('enableBigquery', {
+    method: 'POST',
+    body: JSON.stringify({ projectId })
+  });
 }

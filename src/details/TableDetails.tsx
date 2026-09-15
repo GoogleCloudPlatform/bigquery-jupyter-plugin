@@ -8,16 +8,15 @@
  */
 
 import React, { useState } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getTable,
-  IPreviewPage,
   ISchemaField,
   ITableMeta,
-  PreviewCell,
   previewTable
 } from '../explorer/api';
 import { ITableRef } from '../explorer/TableActions';
+import { PagerBar, ResultsGrid } from '../common/ResultsView';
 
 const PREVIEW_PAGE_SIZE = 100;
 
@@ -67,16 +66,6 @@ function humanBytes(n?: number | null): string {
 
 function humanNumber(n?: number | null): string {
   return n === null || n === undefined ? '—' : n.toLocaleString();
-}
-
-function formatCell(value: PreviewCell): string {
-  if (value === null || value === undefined) {
-    return 'null';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
 }
 
 function SchemaRows({
@@ -168,77 +157,58 @@ function DetailsTab({ meta }: { meta: ITableMeta }): JSX.Element {
 }
 
 function PreviewTab({ tref }: { tref: ITableRef }): JSX.Element {
-  const q = useInfiniteQuery({
-    queryKey: ['preview', tref.projectId, tref.datasetId, tref.tableId],
-    queryFn: ({ pageParam }: { pageParam: number }) =>
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PREVIEW_PAGE_SIZE);
+  // Random-access paging over tabledata.list (free): each page is a direct
+  // fetch at startIndex = page * pageSize. keepPreviousData holds the current
+  // page on screen while the next one loads, so the grid doesn't flash empty.
+  const q = useQuery({
+    queryKey: [
+      'preview',
+      tref.projectId,
+      tref.datasetId,
+      tref.tableId,
+      page,
+      pageSize
+    ],
+    queryFn: () =>
       previewTable(
         tref.projectId,
         tref.datasetId,
         tref.tableId,
-        PREVIEW_PAGE_SIZE,
-        pageParam
+        pageSize,
+        page * pageSize
       ),
-    initialPageParam: 0,
-    getNextPageParam: (last: IPreviewPage, all: IPreviewPage[]) => {
-      const loaded = all.reduce((n, p) => n + p.rows.length, 0);
-      return loaded < last.totalRows ? loaded : undefined;
-    }
+    placeholderData: keepPreviousData
   });
 
-  if (q.isLoading) {
+  if (q.isLoading && !q.data) {
     return <div className="bq-dt-empty">Loading preview…</div>;
   }
   if (q.isError) {
     return <div className="bq-dt-error">{errorMessage(q.error)}</div>;
   }
-  const pages = q.data ? q.data.pages : [];
-  const columns = pages.length > 0 ? pages[0].schema : [];
-  const rows = pages.flatMap(p => p.rows);
-  const total = pages.length > 0 ? pages[0].totalRows : 0;
-  if (rows.length === 0) {
+  const columns = q.data?.schema ?? [];
+  const rows = q.data?.rows ?? [];
+  const total = q.data?.totalRows ?? null;
+  if (columns.length === 0) {
     return <div className="bq-dt-empty">No rows to display.</div>;
   }
   return (
     <div className="bq-dt-preview">
-      <div className="bq-dt-preview-info">
-        Showing {rows.length.toLocaleString()} of {total.toLocaleString()} rows
-      </div>
-      <div className="bq-dt-preview-scroll">
-        <table className="bq-dt-table bq-dt-grid">
-          <thead>
-            <tr>
-              <th className="bq-dt-rownum">#</th>
-              {columns.map(c => (
-                <th key={c.name}>{c.name}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, r) => (
-              <tr key={r}>
-                <td className="bq-dt-rownum">{r + 1}</td>
-                {row.map((cell, c) => (
-                  <td
-                    key={c}
-                    className={cell === null ? 'bq-dt-null' : undefined}
-                  >
-                    {formatCell(cell)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {q.hasNextPage && (
-        <button
-          className="bq-dt-more"
-          onClick={() => q.fetchNextPage()}
-          disabled={q.isFetchingNextPage}
-        >
-          {q.isFetchingNextPage ? 'Loading more…' : 'Load more'}
-        </button>
-      )}
+      <PagerBar
+        page={page}
+        pageSize={pageSize}
+        totalRows={total}
+        rowsOnPage={rows.length}
+        busy={q.isFetching}
+        onPage={setPage}
+        onPageSize={s => {
+          setPageSize(s);
+          setPage(0);
+        }}
+      />
+      <ResultsGrid columns={columns} rows={rows} startIndex={page * pageSize} />
     </div>
   );
 }

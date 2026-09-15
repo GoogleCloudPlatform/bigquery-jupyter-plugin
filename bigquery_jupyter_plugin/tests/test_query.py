@@ -112,19 +112,48 @@ def test_get_query_results_done_typed_rows():
         _FakeRow((1, decimal.Decimal("2.50"))),
         _FakeRow((None, decimal.Decimal("0"))),
     ]
-    row_iter = _FakeRowIterator(rows, schema, total_rows=2, next_page_token="tok")
+    row_iter = _FakeRowIterator(rows, schema, total_rows=2, next_page_token=None)
     job = mock.MagicMock()
     job.state = "DONE"
     job.result.return_value = row_iter
     client = mock.MagicMock()
     client.get_job.return_value = job
     with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
-        out = query.get_query_results("job123", "proj", "US", None, 100)
+        out = query.get_query_results("job123", "proj", "US", 0, 100)
 
     assert out["state"] == "DONE"
     assert out["rows"] == [[1, "2.50"], [None, "0"]]
     assert [c["name"] for c in out["schema"]] == ["n", "amt"]
     assert out["totalRows"] == 2
-    assert out["nextPageToken"] == "tok"
+    assert out["startIndex"] == 0
+    # First page (offset 0) comes from job.result(), which surfaces query errors.
+    job.result.assert_called_once()
     _, kwargs = job.result.call_args
     assert kwargs["page_size"] == 100
+    client.list_rows.assert_not_called()
+
+
+def test_get_query_results_random_access_page():
+    """A non-zero start_index jumps to any page via tabledata.list, not result()."""
+    schema = [bigquery.SchemaField("n", "INTEGER")]
+    rows = [_FakeRow((41,)), _FakeRow((42,))]
+    row_iter = _FakeRowIterator(rows, schema, total_rows=1000, next_page_token=None)
+    job = mock.MagicMock()
+    job.state = "DONE"
+    job.destination = "proj.ds.anon_results"
+    client = mock.MagicMock()
+    client.get_job.return_value = job
+    client.list_rows.return_value = row_iter
+    with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
+        out = query.get_query_results("job123", "proj", "US", 40, 20)
+
+    assert out["state"] == "DONE"
+    assert out["rows"] == [[41], [42]]
+    assert out["totalRows"] == 1000
+    assert out["startIndex"] == 40
+    # Random access reads the destination table; job.result() is NOT used.
+    job.result.assert_not_called()
+    args, kwargs = client.list_rows.call_args
+    assert args[0] == "proj.ds.anon_results"
+    assert kwargs["start_index"] == 40
+    assert kwargs["max_results"] == 20

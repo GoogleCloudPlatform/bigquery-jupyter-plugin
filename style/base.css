@@ -126,6 +126,12 @@
   border-radius: 2px;
   padding: 0 3px;
 }
+/* Attribute pills (partitioned / clustered): a subtle brand-tinted accent so
+   they read as properties of the table, distinct from the plain type badge. */
+.bq-badge-attr {
+  color: var(--jp-brand-color1);
+  border-color: var(--jp-brand-color1);
+}
 .bq-info {
   color: var(--jp-ui-font-color2);
   padding: 1px 14px;
@@ -206,6 +212,77 @@
 }
 .bq-search-input::placeholder {
   color: var(--jp-ui-font-color3);
+}
+.bq-search-enable {
+  padding: 12px;
+}
+/* Top-of-explorer banner when the BigQuery API is disabled on the project. */
+.bq-api-notice {
+  margin: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--jp-border-color1);
+  border-left: 3px solid var(--jp-warn-color1, #e3742f);
+  border-radius: 4px;
+  background: var(--jp-layout-color2);
+}
+.bq-search-note {
+  margin: 0 0 10px 0;
+  color: var(--jp-ui-font-color1);
+  font-size: var(--jp-ui-font-size1);
+  line-height: 1.4;
+}
+.bq-search-note code {
+  font-family: var(--jp-code-font-family);
+  background: var(--jp-layout-color2);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+.bq-enable-btn {
+  padding: 4px 14px;
+  cursor: pointer;
+  color: var(--jp-ui-inverse-font-color1, #fff);
+  background: var(--jp-brand-color1);
+  border: none;
+  border-radius: 3px;
+  font-size: var(--jp-ui-font-size1);
+}
+.bq-enable-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.bq-search-error {
+  margin: 10px 0 0 0;
+  color: var(--jp-error-color1);
+  font-size: var(--jp-ui-font-size1);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Section header ("Datasets" / "Tables") in the search results panel. */
+.bq-search-section-label {
+  padding: 8px 12px 2px 12px;
+  font-size: var(--jp-ui-font-size0);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--jp-ui-font-color2);
+}
+/* Muted caveat under a section (e.g. Dataplex catalog coverage note). */
+.bq-search-caveat {
+  margin: 0;
+  padding: 0 12px 6px 12px;
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+  line-height: 1.4;
+  font-style: italic;
+}
+/* Matched-substring highlight in search results (dataset/table names). */
+.bq-hl {
+  background: var(
+    --jp-search-selected-match-background-color,
+    rgba(255, 213, 0, 0.4)
+  );
+  color: inherit;
+  border-radius: 2px;
 }
 .bq-search-clear {
   display: inline-flex;
@@ -578,6 +655,60 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.bq-qe-results .bq-dt-preview-scroll {
+  flex: 1 1 auto;
+}
+
+/* Rich results-grid pagination bar (first/prev/next/last + page size). */
+.bq-dt-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 0 6px 0;
+  color: var(--jp-ui-font-color2);
+}
+.bq-dt-pager-info {
+  white-space: nowrap;
+}
+.bq-dt-pager-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bq-dt-pager-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.bq-dt-pager-size {
+  background: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+.bq-dt-pager-btn {
+  min-width: 24px;
+  padding: 2px 7px;
+  cursor: pointer;
+  background: var(--jp-layout-color2);
+  color: var(--jp-ui-font-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  font-size: var(--jp-ui-font-size1);
+  line-height: 1.2;
+}
+.bq-dt-pager-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.bq-dt-pager-btn:not(:disabled):hover {
+  background: var(--jp-layout-color3);
 }
 
 /* ---- query history (main area) ---- */

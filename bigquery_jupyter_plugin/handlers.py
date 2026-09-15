@@ -18,6 +18,8 @@ from bigquery_jupyter_plugin.services import (
     explorer,
     query,
     query_history,
+    search,
+    serviceusage,
 )
 
 
@@ -179,12 +181,12 @@ class QueryResultsHandler(APIHandler):
         job_id = self.get_argument("jobId")
         project_id = self.get_argument("projectId", default="") or None
         location = self.get_argument("location", default="") or None
-        page_token = self.get_argument("pageToken", default="") or None
+        start_index = int(self.get_argument("startIndex", default="0"))
         max_results = int(self.get_argument("maxResults", default="100"))
         await _finish_json(
             self,
             lambda: query.get_query_results(
-                job_id, project_id, location, page_token, max_results
+                job_id, project_id, location, start_index, max_results
             ),
         )
 
@@ -221,6 +223,59 @@ class QueryHistoryHandler(APIHandler):
         )
 
 
+class SearchTablesHandler(APIHandler):
+    """Search tables/views by name across datasets via Dataplex searchEntries."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        term = self.get_argument("term", default="")
+        projects_arg = self.get_argument("projects", default="")
+        projects = [p for p in projects_arg.split(",") if p] or None
+        await _finish_json(
+            self,
+            lambda: search.search_tables(project_id, term, projects),
+        )
+
+
+class DataplexStatusHandler(APIHandler):
+    """Report whether the Dataplex API is enabled on a project."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        await _finish_json(self, lambda: search.dataplex_status(project_id))
+
+
+class EnableDataplexHandler(APIHandler):
+    """Enable the Dataplex API on a project (needs serviceusage.services.enable)."""
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = json.loads(self.request.body or b"{}")
+        project_id = body.get("projectId", "")
+        await _finish_json(self, lambda: search.enable_dataplex(project_id))
+
+
+class BigqueryStatusHandler(APIHandler):
+    """Report whether the BigQuery API is enabled on a project."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        await _finish_json(self, lambda: serviceusage.bigquery_status(project_id))
+
+
+class EnableBigqueryHandler(APIHandler):
+    """Enable the BigQuery API on a project (needs serviceusage.services.enable)."""
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = json.loads(self.request.body or b"{}")
+        project_id = body.get("projectId", "")
+        await _finish_json(self, lambda: serviceusage.enable_bigquery(project_id))
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -242,6 +297,11 @@ def setup_handlers(web_app):
         "queryResults": QueryResultsHandler,
         "cancelQuery": CancelQueryHandler,
         "queryHistory": QueryHistoryHandler,
+        "searchTables": SearchTablesHandler,
+        "dataplexStatus": DataplexStatusHandler,
+        "enableDataplex": EnableDataplexHandler,
+        "bigqueryStatus": BigqueryStatusHandler,
+        "enableBigquery": EnableBigqueryHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)

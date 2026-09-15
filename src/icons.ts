@@ -54,6 +54,14 @@ export const viewIcon = makeIcon(
   '<path class="jp-icon3" fill="#616161" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>'
 );
 
+// Materialized view (stacked layers) — storage-backed, so distinct from a
+// logical view's eye icon.
+export const materializedViewIcon = makeIcon(
+  'bigquery-jupyter-plugin:materialized-view',
+  '0 0 24 24',
+  '<path class="jp-icon3" fill="#616161" d="M12 2 3 9l1.63 1.27L12 16l7.37-5.73L21 9l-9-7zm7.36 8.27L12 16l-7.36-5.73L3 11.5l9 7 9-7-1.64-1.23z"/>'
+);
+
 // Column (three vertical bars).
 export const columnIcon = makeIcon(
   'bigquery-jupyter-plugin:column',
@@ -98,12 +106,15 @@ export const searchClearIcon = makeIcon(
 );
 
 // Pick the row icon for a table-list entry by its BigQuery type. Storage-backed
-// tabular types keep the table icon; views and any other non-table type get the
-// view icon.
+// tabular types keep the table icon; materialized views get their own (they are
+// stored, unlike logical views); views and any other type get the view icon.
 export function iconForTableType(type: string): LabIcon {
   const t = (type || '').toUpperCase();
   if (t === 'TABLE' || t === 'EXTERNAL' || t === 'SNAPSHOT') {
     return tableIcon;
+  }
+  if (t === 'MATERIALIZED_VIEW') {
+    return materializedViewIcon;
   }
   return viewIcon;
 }
