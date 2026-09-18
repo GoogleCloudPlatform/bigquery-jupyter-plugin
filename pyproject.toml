@@ -53,7 +53,10 @@ exclude = [".github", "binder"]
 "jupyter-config/server-config" = "etc/jupyter/jupyter_server_config.d"
 
 [tool.hatch.build.hooks.jupyter-builder]
-dependencies = ["hatch-jupyter-builder>=0.5"]
+# hatch-jupyter-builder < 0.10 (e.g. 0.9.1) breaks against hatchling >= 1.32.1
+# with "TypeError: Too few arguments for BuildHookInterface". Require >= 0.10.0
+# so the isolated build env resolves a builder compatible with current hatchling.
+dependencies = ["hatch-jupyter-builder>=0.10.0"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = [
     "bigquery_jupyter_plugin/labextension/static/style.js",
