@@ -42,6 +42,45 @@ def list_projects(page_token=None, page_size=_DEFAULT_PAGE_SIZE):
     return {"projects": projects, "nextPageToken": data.get("nextPageToken")}
 
 
+def resolve_project(project_ref):
+    """Resolve a project id OR number to its canonical id and metadata.
+
+    Accepts either a project id (``my-project``) or a numeric project number
+    (``123456789012``) and returns ``{projectId, projectNumber, name}`` so the
+    UI can add the canonical id to the tree instead of the raw number.
+
+    Resolution order:
+      1. Cloud Resource Manager ``projects.get`` -- authoritative and works even
+         for an empty project, but needs ``resourcemanager.projects.get``.
+      2. Fallback: read the canonical ``projectId`` off a dataset reference,
+         which works with only ``bigquery.datasets.list`` but needs the project
+         to expose at least one visible dataset.
+    """
+    ref = str(project_ref).strip()
+    resp = _authorized_session().get(f"{_RESOURCE_MANAGER_URL}/{ref}", timeout=30)
+    if resp.ok:
+        data = resp.json()
+        return {
+            "projectId": data.get("projectId"),
+            "projectNumber": data.get("projectNumber"),
+            "name": data.get("name") or data.get("projectId"),
+        }
+    # Resource Manager denied/failed (often no resourcemanager.projects.get);
+    # a dataset's reference still carries the canonical project id.
+    try:
+        client = _bq_client.get_bq_client(project=ref)
+        for dataset in client.list_datasets(project=ref, max_results=1):
+            if dataset.project:
+                return {
+                    "projectId": dataset.project,
+                    "projectNumber": None,
+                    "name": dataset.project,
+                }
+    except Exception:  # noqa: BLE001 - fall through to the original RM error
+        pass
+    resp.raise_for_status()
+
+
 def _first_page(iterator):
     """Return (items, next_page_token) for the first page of an HTTPIterator."""
     try:

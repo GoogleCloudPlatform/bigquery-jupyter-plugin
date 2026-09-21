@@ -30,6 +30,7 @@ import {
   ITablePage,
   listDatasets,
   listTables,
+  resolveProject,
   searchTables
 } from './api';
 import { MenuProvider, useMenu } from './ContextMenu';
@@ -957,13 +958,31 @@ function ExplorerTreeInner({
     }
   }
 
-  const onAdd = (e: React.FormEvent): void => {
+  const onAdd = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     const v = input.trim();
-    if (v && !roots.includes(v)) {
-      persist([...added, v]);
-    }
     setInput('');
+    if (!v) {
+      return;
+    }
+    // A bare number is a project number; resolve it to the canonical project id
+    // so the tree shows (and persists) the id, not the number. If resolution
+    // fails, keep the raw input -- browsing still works (BigQuery accepts the
+    // number), the label just stays the number.
+    let id = v;
+    if (/^\d+$/.test(v)) {
+      try {
+        const resolved = await resolveProject(v);
+        if (resolved.projectId) {
+          id = resolved.projectId;
+        }
+      } catch {
+        // keep the raw input
+      }
+    }
+    if (!roots.includes(id)) {
+      persist([...added, id]);
+    }
   };
 
   return (
@@ -1001,11 +1020,11 @@ function ExplorerTreeInner({
         {cfg.data ? (cfg.data.principal ?? 'no identity') : '…'}
       </div>
       <BigQueryApiNotice billingProject={cfg.data?.project ?? null} />
-      <form className="bq-add" onSubmit={onAdd}>
+      <form className="bq-add" onSubmit={e => void onAdd(e)}>
         <input
           className="bq-add-input"
           type="text"
-          placeholder="Add project by ID"
+          placeholder="Add project by ID or number"
           value={input}
           onChange={e => setInput(e.target.value)}
         />

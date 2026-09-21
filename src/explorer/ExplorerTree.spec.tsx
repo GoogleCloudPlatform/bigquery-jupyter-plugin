@@ -94,11 +94,35 @@ describe('ExplorerTree', () => {
   // CUJ-3: "Add project by ID" adds a browsable root (in-session).
   it('adds a project by id', async () => {
     renderTree();
-    await screen.findByText('proj-a');
-    const input = screen.getByPlaceholderText('Add project by ID');
+    await screen.findByText('proj-a', { selector: '.bq-label' });
+    const input = screen.getByPlaceholderText('Add project by ID or number');
     fireEvent.change(input, { target: { value: 'proj-b' } });
     fireEvent.submit(input.closest('form') as HTMLFormElement);
-    expect(await screen.findByText('proj-b')).toBeInTheDocument();
+    expect(
+      await screen.findByText('proj-b', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+  });
+
+  // A numeric input is a project number: resolve it to the canonical id and
+  // show/persist the id, not the number.
+  it('resolves a project number to its id when adding', async () => {
+    mockedApi.resolveProject.mockResolvedValue({
+      projectId: 'resolved-proj',
+      projectNumber: '123456789012',
+      name: 'resolved-proj'
+    });
+    renderTree();
+    await screen.findByText('proj-a', { selector: '.bq-label' });
+    const input = screen.getByPlaceholderText('Add project by ID or number');
+    fireEvent.change(input, { target: { value: '123456789012' } });
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    expect(
+      await screen.findByText('resolved-proj', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+    expect(mockedApi.resolveProject).toHaveBeenCalledWith('123456789012');
+    expect(
+      screen.queryByText('123456789012', { selector: '.bq-label' })
+    ).not.toBeInTheDocument();
   });
 
   // CUJ-4: the default (auto-opened) project lists its datasets.
