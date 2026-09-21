@@ -345,6 +345,11 @@
   color: var(--jp-ui-font-color3);
 }
 
+/* Leaf columns (no nested fields) don't toggle, so don't imply clickability. */
+.bq-row-static {
+  cursor: default;
+}
+
 /* ---- context menu + actions ---- */
 .bq-header-actions {
   display: inline-flex;
