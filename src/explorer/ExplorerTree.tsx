@@ -75,6 +75,24 @@ function copyId(id: string): void {
   Notification.success(`Copied: ${id}`, { autoClose: 2000 });
 }
 
+// Build the exact gcloud command that grants the dataset-viewer role, using the
+// correct IAM member type: a *.gserviceaccount.com principal is a serviceAccount,
+// anything else is a user. (An invalid prefix like "user-or-serviceAccount:" is
+// rejected by IAM with INVALID_ARGUMENT, so the hint must pick the right one.)
+function datasetViewerGrantCommand(
+  projectId: string,
+  principal: string | null | undefined
+): string {
+  const id = principal ?? '<PRINCIPAL>';
+  const memberType = id.endsWith('.gserviceaccount.com')
+    ? 'serviceAccount'
+    : 'user';
+  return (
+    `gcloud projects add-iam-policy-binding ${projectId} ` +
+    `--member="${memberType}:${id}" --role=roles/bigquery.dataViewer`
+  );
+}
+
 const Caret = ({ open }: { open: boolean }): JSX.Element => (
   <span className="bq-caret">{open ? '\u25be' : '\u25b8'}</span>
 );
@@ -426,16 +444,27 @@ function ProjectNode({
             <li className="bq-info bq-empty">
               <div>No datasets.</div>
               <div className="bq-empty-hint">
-                If you expected datasets here,{' '}
-                <code>{principal ?? 'the active identity'}</code> may not have
-                permission to list them in <code>{projectId}</code>. Grant{' '}
-                <code>roles/bigquery.dataViewer</code> on the project, e.g.{' '}
-                <code>
-                  gcloud projects add-iam-policy-binding {projectId}{' '}
-                  --member=&quot;user-or-serviceAccount:
-                  {principal ?? '…'}&quot; --role=roles/bigquery.dataViewer
-                </code>
-                .
+                <div className="bq-empty-hint-text">
+                  If you expected datasets here,{' '}
+                  <code>{principal ?? 'the active identity'}</code> may not have
+                  permission to list them in <code>{projectId}</code>. Grant{' '}
+                  <code>roles/bigquery.dataViewer</code> on the project:
+                </div>
+                {(() => {
+                  const cmd = datasetViewerGrantCommand(projectId, principal);
+                  return (
+                    <div className="bq-cmd">
+                      <code className="bq-cmd-text">{cmd}</code>
+                      <button
+                        className="bq-cmd-copy"
+                        title="Copy command"
+                        onClick={() => copyId(cmd)}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </li>
           )}

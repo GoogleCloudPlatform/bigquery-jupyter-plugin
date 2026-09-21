@@ -1013,7 +1013,46 @@
   line-height: 1.4;
 }
 
-.bq-empty-hint code {
+.bq-empty-hint-text code {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* The gcloud grant command: a distinct, copyable code block so it reads as a
+   command to run rather than inline prose. Wraps within the narrow sidebar. */
+.bq-cmd {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--jp-layout-color2);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+}
+
+.bq-cmd-text {
+  flex: 1 1 auto;
+  font-family: var(--jp-code-font-family);
+  font-size: var(--jp-code-font-size, 12px);
+  color: var(--jp-content-font-color1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bq-cmd-copy {
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  background: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  font-size: var(--jp-ui-font-size0, 11px);
+  padding: 1px 6px;
+}
+
+.bq-cmd-copy:hover {
+  background: var(--jp-layout-color2);
+  border-color: var(--jp-brand-color1);
 }

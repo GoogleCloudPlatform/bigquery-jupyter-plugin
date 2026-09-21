@@ -172,6 +172,33 @@ describe('ExplorerTree', () => {
     expect(hint).toHaveTextContent('user@example.com');
     expect(hint).toHaveTextContent('proj-a');
     expect(hint).toHaveTextContent('roles/bigquery.dataViewer');
+    // The grant command must use a valid IAM member prefix. A plain email is a
+    // user, so `user:` — never the bogus `user-or-serviceAccount:`.
+    const cmd = hint.querySelector('.bq-cmd-text') as HTMLElement;
+    expect(cmd).toHaveTextContent('--member="user:user@example.com"');
+    expect(hint).not.toHaveTextContent('user-or-serviceAccount:');
+  });
+
+  // Bug fix: a service-account principal must be prefixed `serviceAccount:` in
+  // the grant command (a `*.gserviceaccount.com` member as `user:` is rejected
+  // by IAM with INVALID_ARGUMENT).
+  it('uses the serviceAccount: prefix for a service-account identity', async () => {
+    const sa = '267782943877-compute@developer.gserviceaccount.com';
+    mockedApi.getConfig.mockResolvedValue({ principal: sa, project: 'proj-a' });
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'bigquery-public-data'
+            ? [{ id: 'samples', projectId: 'bigquery-public-data' }]
+            : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    await screen.findByText(/No datasets/);
+    const cmd = document.querySelector('.bq-cmd-text') as HTMLElement;
+    expect(cmd).toHaveTextContent(`--member="serviceAccount:${sa}"`);
+    expect(cmd).not.toHaveTextContent('user:');
   });
 
   // Bug fix: in search mode the project row still offers its context menu
