@@ -1,0 +1,208 @@
+/*
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file or at
+ * https://developers.google.com/open-source/licenses/bsd
+ */
+
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ExplorerTree } from './ExplorerTree';
+import * as api from './api';
+import { ITableActions } from './TableActions';
+
+// Stub the LabIcon set so the tree renders in jsdom without SVG loaders.
+jest.mock('../icons', () => {
+  const react = require('react');
+  const stub = {
+    react: (props: Record<string, unknown>) =>
+      react.createElement('span', props)
+  };
+  return {
+    addIcon: stub,
+    columnIcon: stub,
+    datasetIcon: stub,
+    historyIcon: stub,
+    projectIcon: stub,
+    queryIcon: stub,
+    searchClearIcon: stub,
+    searchIcon: stub,
+    datasetExplorerIcon: stub,
+    iconForTableType: () => stub
+  };
+});
+
+jest.mock('./api');
+const mockedApi = api as jest.Mocked<typeof api>;
+
+function renderTree(): ITableActions {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  });
+  const actions: ITableActions = {
+    openDetails: jest.fn(),
+    openQuery: jest.fn(),
+    openHistory: jest.fn()
+  };
+  render(
+    <QueryClientProvider client={client}>
+      <ExplorerTree settings={null} actions={actions} />
+    </QueryClientProvider>
+  );
+  return actions;
+}
+
+beforeEach(() => {
+  jest.resetAllMocks();
+  mockedApi.getConfig.mockResolvedValue({
+    principal: 'user@example.com',
+    project: 'proj-a'
+  });
+  mockedApi.bigqueryStatus.mockResolvedValue({ enabled: true });
+  mockedApi.dataplexStatus.mockResolvedValue({ enabled: false });
+  mockedApi.listDatasets.mockResolvedValue({
+    datasets: [],
+    nextPageToken: null
+  });
+  mockedApi.listTables.mockResolvedValue({ tables: [], nextPageToken: null });
+  mockedApi.searchTables.mockResolvedValue({ results: [], partial: false });
+});
+
+describe('ExplorerTree', () => {
+  // CUJ-1: identity header shows the active principal from /config.
+  it('shows the active identity in the header', async () => {
+    renderTree();
+    expect(
+      await screen.findByText('user@example.com', { selector: '.bq-principal' })
+    ).toBeInTheDocument();
+  });
+
+  // CUJ-3: roots are the default project + bigquery-public-data.
+  it('roots the tree at the default project and public data', async () => {
+    renderTree();
+    expect(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('bigquery-public-data', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+  });
+
+  // CUJ-3: "Add project by ID" adds a browsable root (in-session).
+  it('adds a project by id', async () => {
+    renderTree();
+    await screen.findByText('proj-a');
+    const input = screen.getByPlaceholderText('Add project by ID');
+    fireEvent.change(input, { target: { value: 'proj-b' } });
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    expect(await screen.findByText('proj-b')).toBeInTheDocument();
+  });
+
+  // CUJ-4: the default (auto-opened) project lists its datasets.
+  it('lists datasets for the default project', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    expect(await screen.findByText('sales')).toBeInTheDocument();
+    expect(mockedApi.listDatasets).toHaveBeenCalledWith('proj-a', undefined);
+  });
+
+  // CUJ-9: a dataset-listing failure renders inline, not a crash.
+  it('surfaces a dataset-listing error inline', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      projectId === 'proj-a'
+        ? Promise.reject(new Error('404 Not found: Project proj-a'))
+        : Promise.resolve({ datasets: [], nextPageToken: null })
+    );
+    renderTree();
+    expect(
+      await screen.findByText(/404 Not found: Project proj-a/)
+    ).toBeInTheDocument();
+  });
+
+  // CUJ-40: BigQuery API disabled -> friendly enable banner.
+  it('shows the enable-BigQuery banner when the API is off', async () => {
+    mockedApi.bigqueryStatus.mockResolvedValue({ enabled: false });
+    renderTree();
+    expect(
+      await screen.findByText(/The BigQuery API is not enabled/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Enable the BigQuery API/ })
+    ).toBeInTheDocument();
+  });
+
+  // CUJ-40 (fail-open): no banner when the API is enabled.
+  it('shows no enable banner when the API is enabled', async () => {
+    renderTree();
+    await screen.findByText('proj-a');
+    await waitFor(() =>
+      expect(mockedApi.bigqueryStatus).toHaveBeenCalledWith('proj-a')
+    );
+    expect(
+      screen.queryByText(/The BigQuery API is not enabled/)
+    ).not.toBeInTheDocument();
+  });
+
+  // Bug fix: a project with zero datasets shows an access hint (identity +
+  // the roles/bigquery.dataViewer grant), not just a bare "No datasets".
+  it('shows an access hint when a project has no datasets', async () => {
+    // proj-a is empty; give bigquery-public-data data so only proj-a hints.
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'bigquery-public-data'
+            ? [{ id: 'samples', projectId: 'bigquery-public-data' }]
+            : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    await screen.findByText(/No datasets/);
+    const hint = document.querySelector('.bq-empty-hint') as HTMLElement;
+    expect(hint).toBeTruthy();
+    expect(hint).toHaveTextContent('user@example.com');
+    expect(hint).toHaveTextContent('proj-a');
+    expect(hint).toHaveTextContent('roles/bigquery.dataViewer');
+  });
+
+  // Bug fix: in search mode the project row still offers its context menu
+  // (previously right-click on a search-result project did nothing).
+  it('offers the project context menu in search results', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a'
+            ? [{ id: 'census_data', projectId: 'proj-a' }]
+            : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    await screen.findByText('proj-a');
+    const searchBox = screen.getByPlaceholderText(
+      'Search tables & datasets (3+ chars)'
+    );
+    fireEvent.change(searchBox, { target: { value: 'census' } });
+    // Wait until search mode renders a project row in the results.
+    await waitFor(() =>
+      expect(
+        document.querySelector('.bq-search-results .bq-project')
+      ).toBeTruthy()
+    );
+    const projectRow = document.querySelector(
+      '.bq-search-results .bq-project'
+    ) as HTMLElement;
+    fireEvent.contextMenu(projectRow);
+    expect(await screen.findByText('Refresh project')).toBeInTheDocument();
+    expect(screen.getByText('Copy project ID')).toBeInTheDocument();
+  });
+});

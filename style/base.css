@@ -1002,3 +1002,18 @@
 .bq-qe-cm .cm-editor.cm-focused {
   outline: none;
 }
+
+/* Access hint shown when a project lists zero datasets (often a permissions
+   gap on a service-account instance). Secondary text; the gcloud command wraps
+   instead of overflowing the narrow sidebar. */
+.bq-empty-hint {
+  margin-top: 4px;
+  font-size: var(--jp-ui-font-size0, 11px);
+  color: var(--jp-ui-font-color2);
+  line-height: 1.4;
+}
+
+.bq-empty-hint code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
