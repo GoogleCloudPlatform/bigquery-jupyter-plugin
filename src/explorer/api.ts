@@ -84,6 +84,18 @@ export function getConfig(): Promise<IConfig> {
   return requestAPI<IConfig>('config');
 }
 
+export interface IResolvedProject {
+  projectId: string | null;
+  projectNumber?: string | null;
+  name?: string | null;
+}
+
+// Resolve a project id OR number to its canonical id (so a number typed into
+// "Add project" becomes the readable id in the tree).
+export function resolveProject(project: string): Promise<IResolvedProject> {
+  return requestAPI(`resolveProject?project=${encodeURIComponent(project)}`);
+}
+
 export function listDatasets(
   projectId: string,
   pageToken?: string
