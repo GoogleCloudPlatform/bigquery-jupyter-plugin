@@ -75,6 +75,24 @@ function copyId(id: string): void {
   Notification.success(`Copied: ${id}`, { autoClose: 2000 });
 }
 
+// Build the exact gcloud command that grants the dataset-viewer role, using the
+// correct IAM member type: a *.gserviceaccount.com principal is a serviceAccount,
+// anything else is a user. (An invalid prefix like "user-or-serviceAccount:" is
+// rejected by IAM with INVALID_ARGUMENT, so the hint must pick the right one.)
+function datasetViewerGrantCommand(
+  projectId: string,
+  principal: string | null | undefined
+): string {
+  const id = principal ?? '<PRINCIPAL>';
+  const memberType = id.endsWith('.gserviceaccount.com')
+    ? 'serviceAccount'
+    : 'user';
+  return (
+    `gcloud projects add-iam-policy-binding ${projectId} ` +
+    `--member="${memberType}:${id}" --role=roles/bigquery.dataViewer`
+  );
+}
+
 const Caret = ({ open }: { open: boolean }): JSX.Element => (
   <span className="bq-caret">{open ? '\u25be' : '\u25b8'}</span>
 );
@@ -327,12 +345,14 @@ function ProjectNode({
   projectId,
   defaultOpen,
   filter,
-  onRemove
+  onRemove,
+  principal
 }: {
   projectId: string;
   defaultOpen?: boolean;
   filter: string;
   onRemove?: () => void;
+  principal?: string | null;
 }): JSX.Element {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const filtering = Boolean(filter);
@@ -421,7 +441,32 @@ function ProjectNode({
             <li className="bq-error">{errorMessage(q.error)}</li>
           )}
           {open && !filtering && q.data && allDatasets.length === 0 && (
-            <li className="bq-info">No datasets</li>
+            <li className="bq-info bq-empty">
+              <div>No datasets.</div>
+              <div className="bq-empty-hint">
+                <div className="bq-empty-hint-text">
+                  If you expected datasets here,{' '}
+                  <code>{principal ?? 'the active identity'}</code> may not have
+                  permission to list them in <code>{projectId}</code>. Grant{' '}
+                  <code>roles/bigquery.dataViewer</code> on the project:
+                </div>
+                {(() => {
+                  const cmd = datasetViewerGrantCommand(projectId, principal);
+                  return (
+                    <div className="bq-cmd">
+                      <code className="bq-cmd-text">{cmd}</code>
+                      <button
+                        className="bq-cmd-copy"
+                        title="Copy command"
+                        onClick={() => copyId(cmd)}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </li>
           )}
           {datasets.map(d => (
             <DatasetNode key={d.id} projectId={projectId} datasetId={d.id} />
@@ -502,13 +547,28 @@ function DatasetSearchProject({
   term: string;
   datasets: IDataset[];
 }): JSX.Element | null {
+  const openMenu = useMenu();
+  const queryClient = useQueryClient();
   const matched = datasets.filter(d => matches(d.id, term));
   if (matched.length === 0) {
     return null;
   }
+  const menuItems = [
+    { label: 'Copy project ID', onClick: () => copyId(projectId) },
+    {
+      label: 'Refresh project',
+      onClick: () => {
+        queryClient.invalidateQueries({ queryKey: ['allDatasets', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['datasets', projectId] });
+      }
+    }
+  ];
   return (
     <li className="bq-node">
-      <div className="bq-row bq-project">
+      <div
+        className="bq-row bq-project"
+        onContextMenu={e => openMenu(e, menuItems)}
+      >
         <projectIcon.react
           tag="span"
           className="bq-type-icon"
@@ -602,6 +662,7 @@ function TableSearchSection({
   term: string;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const openMenu = useMenu();
   const [enabling, setEnabling] = useState(false);
   const [enableError, setEnableError] = useState('');
 
@@ -708,7 +769,31 @@ function TableSearchSection({
         )}
         {Array.from(byProject.entries()).map(([proj, datasets]) => (
           <li className="bq-node" key={proj}>
-            <div className="bq-row bq-project">
+            <div
+              className="bq-row bq-project"
+              onContextMenu={e =>
+                openMenu(e, [
+                  { label: 'Copy project ID', onClick: () => copyId(proj) },
+                  {
+                    label: 'Refresh project',
+                    onClick: () => {
+                      queryClient.invalidateQueries({
+                        queryKey: ['searchTables']
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ['allDatasets', proj]
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ['datasets', proj]
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ['tables', proj]
+                      });
+                    }
+                  }
+                ])
+              }
+            >
               <projectIcon.react
                 tag="span"
                 className="bq-type-icon"
@@ -973,6 +1058,7 @@ function ExplorerTreeInner({
               projectId={p}
               defaultOpen={i === 0}
               filter={filter}
+              principal={cfg.data?.principal ?? null}
               onRemove={
                 added.includes(p)
                   ? () => persist(added.filter(x => x !== p))
