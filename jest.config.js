@@ -8,7 +8,15 @@ const esModules = [
   '@jupyterlab/',
   '@lumino/',
   '@microsoft',
+  // sanitize-html >=2.17 pulls the now-ESM htmlparser2 dependency cluster
+  // (via @jupyterlab/apputils' Sanitizer), which jest must transform.
+  'dom-serializer',
+  'domelementtype',
+  'domhandler',
+  'domutils',
+  'entities',
   'exenv-es6',
+  'htmlparser2',
   'lib0',
   'nanoid',
   'vscode-ws-jsonrpc',
