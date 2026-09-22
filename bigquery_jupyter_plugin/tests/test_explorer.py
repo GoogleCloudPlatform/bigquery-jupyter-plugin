@@ -8,6 +8,8 @@
 
 from unittest import mock
 
+import pytest
+
 from bigquery_jupyter_plugin.services import explorer
 
 
@@ -98,3 +100,57 @@ def test_list_datasets_shape():
         {"id": "ds1", "projectId": "proj", "friendlyName": "First"},
         {"id": "ds2", "projectId": "proj", "friendlyName": None},
     ]
+
+
+def _rm_response(ok, payload=None):
+    resp = mock.MagicMock()
+    resp.ok = ok
+    resp.json.return_value = payload or {}
+    if not ok:
+        resp.raise_for_status.side_effect = RuntimeError("403 Forbidden")
+    return resp
+
+
+def test_resolve_project_via_resource_manager():
+    session = mock.MagicMock()
+    session.get.return_value = _rm_response(
+        True, {"projectId": "my-proj", "projectNumber": "123456789012", "name": "My"}
+    )
+    with mock.patch.object(explorer, "_authorized_session", return_value=session):
+        out = explorer.resolve_project("123456789012")
+    assert out == {
+        "projectId": "my-proj",
+        "projectNumber": "123456789012",
+        "name": "My",
+    }
+
+
+def test_resolve_project_falls_back_to_dataset_reference():
+    # Resource Manager denied (no resourcemanager.projects.get), but a dataset
+    # reference still carries the canonical project id.
+    session = mock.MagicMock()
+    session.get.return_value = _rm_response(False)
+    client = mock.MagicMock()
+    client.list_datasets.return_value = [_DatasetItem("ds1", "canonical-proj")]
+    with mock.patch.object(
+        explorer, "_authorized_session", return_value=session
+    ), mock.patch.object(
+        explorer._bq_client, "get_bq_client", return_value=client
+    ):
+        out = explorer.resolve_project("123456789012")
+    assert out["projectId"] == "canonical-proj"
+
+
+def test_resolve_project_raises_when_unresolvable():
+    # RM denied and no datasets to read the id from -> surface the RM error.
+    session = mock.MagicMock()
+    session.get.return_value = _rm_response(False)
+    client = mock.MagicMock()
+    client.list_datasets.return_value = []
+    with mock.patch.object(
+        explorer, "_authorized_session", return_value=session
+    ), mock.patch.object(
+        explorer._bq_client, "get_bq_client", return_value=client
+    ):
+        with pytest.raises(Exception):
+            explorer.resolve_project("does-not-exist")

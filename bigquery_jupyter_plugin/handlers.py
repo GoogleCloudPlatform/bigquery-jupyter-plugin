@@ -89,6 +89,15 @@ class ProjectsHandler(APIHandler):
         await _finish_json(self, lambda: explorer.list_projects(page_token, page_size))
 
 
+class ResolveProjectHandler(APIHandler):
+    """Resolve a project id or number to its canonical id and metadata."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project = self.get_argument("project")
+        await _finish_json(self, lambda: explorer.resolve_project(project))
+
+
 class DatasetsHandler(APIHandler):
     """List datasets in a project (paginated)."""
 
@@ -288,6 +297,7 @@ def setup_handlers(web_app):
         "health": HealthCheckHandler,
         "config": ConfigHandler,
         "projects": ProjectsHandler,
+        "resolveProject": ResolveProjectHandler,
         "datasets": DatasetsHandler,
         "tables": TablesHandler,
         "table": TableHandler,
