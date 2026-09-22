@@ -311,4 +311,139 @@ describe('ExplorerTree', () => {
       screen.getByText('zip', { selector: '.bq-label' })
     ).toBeInTheDocument();
   });
+
+  // CUJ-9: expanding a dataset lists its tables with a type badge.
+  it('browses tables under a dataset with a type badge', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    mockedApi.listTables.mockResolvedValue({
+      tables: [{ id: 'orders', type: 'TABLE' }],
+      nextPageToken: null
+    });
+    renderTree();
+    fireEvent.click(await screen.findByText('sales'));
+    expect(await screen.findByText('orders')).toBeInTheDocument();
+    expect(
+      screen.getByText('table', { selector: '.bq-badge' })
+    ).toBeInTheDocument();
+    expect(mockedApi.listTables).toHaveBeenCalledWith(
+      'proj-a',
+      'sales',
+      undefined
+    );
+  });
+
+  // CUJ-11: a table's context menu offers Open details / Query table / Copy
+  // table ID, and Open details drives the table-actions callback.
+  it('opens table details from the table context menu', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    mockedApi.listTables.mockResolvedValue({
+      tables: [{ id: 'orders', type: 'TABLE' }],
+      nextPageToken: null
+    });
+    const actions = renderTree();
+    fireEvent.click(await screen.findByText('sales'));
+    fireEvent.contextMenu(await screen.findByText('orders'));
+    expect(await screen.findByText('Open details')).toBeInTheDocument();
+    expect(screen.getByText('Query table')).toBeInTheDocument();
+    expect(screen.getByText('Copy table ID')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Open details'));
+    expect(actions.openDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'proj-a',
+        datasetId: 'sales',
+        tableId: 'orders',
+        tableType: 'TABLE'
+      })
+    );
+  });
+
+  // CUJ-11: a dataset's context menu offers Copy dataset ID / Refresh dataset.
+  it('offers dataset context-menu actions', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    fireEvent.contextMenu(await screen.findByText('sales'));
+    expect(await screen.findByText('Copy dataset ID')).toBeInTheDocument();
+    expect(screen.getByText('Refresh dataset')).toBeInTheDocument();
+  });
+
+  // CUJ-12: "Refresh all" re-fetches from the backend.
+  it('re-fetches datasets when Refresh all is clicked', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    renderTree();
+    await screen.findByText('sales');
+    const before = mockedApi.listDatasets.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh all' }));
+    await waitFor(() =>
+      expect(mockedApi.listDatasets.mock.calls.length).toBeGreaterThan(before)
+    );
+  });
+
+  // CUJ-8: an added project is removable and default roots are not; removal
+  // takes it out of the tree.
+  it('adds then removes a pinned project; defaults are not removable', async () => {
+    renderTree();
+    await screen.findByText('proj-a', { selector: '.bq-label' });
+    const input = screen.getByPlaceholderText('Add project by ID or number');
+    fireEvent.change(input, { target: { value: 'proj-b' } });
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    await screen.findByText('proj-b', { selector: '.bq-label' });
+    // Only the added project (proj-b) has a remove control; proj-a and
+    // bigquery-public-data (defaults) do not.
+    const removeButtons = screen.getAllByTitle('Remove project');
+    expect(removeButtons).toHaveLength(1);
+    fireEvent.click(removeButtons[0]);
+    await waitFor(() =>
+      expect(
+        screen.queryByText('proj-b', { selector: '.bq-label' })
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  // CUJ-31: the search box surfaces cross-dataset table matches (table search
+  // is backed by Dataplex, so it must be enabled).
+  it('searches tables via the search box', async () => {
+    mockedApi.dataplexStatus.mockResolvedValue({ enabled: true });
+    mockedApi.searchTables.mockResolvedValue({
+      results: [
+        {
+          projectId: 'proj-a',
+          datasetId: 'sales',
+          tableId: 'orders',
+          type: 'TABLE'
+        }
+      ],
+      partial: false
+    });
+    renderTree();
+    await screen.findByText('proj-a');
+    fireEvent.change(
+      screen.getByPlaceholderText('Search tables & datasets (3+ chars)'),
+      { target: { value: 'orders' } }
+    );
+    expect(await screen.findByText('orders')).toBeInTheDocument();
+  });
 });
