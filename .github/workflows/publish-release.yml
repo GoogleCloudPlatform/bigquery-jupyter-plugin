@@ -42,6 +42,10 @@ jobs:
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Scope the token to the minimum the release push needs, rather than
+          # inheriting the app's full installation permissions. Add more
+          # permission-* inputs here if jupyter_releaser needs them at runtime.
+          permission-contents: write
 
       - name: Populate Release
         id: populate-release
