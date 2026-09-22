@@ -134,25 +134,49 @@ function Highlight({
   return <>{parts}</>;
 }
 
+// A single column. RECORD/STRUCT columns carry nested `fields`; when present we
+// render an expandable caret so the subcolumns can be revealed inline, mirroring
+// the recursive schema shown in the table Details tab.
 function ColumnNode({ field }: { field: ISchemaField }): JSX.Element {
+  const [open, setOpen] = useState(false);
   const openMenu = useMenu();
+  const children = field.fields ?? [];
+  const hasChildren = children.length > 0;
+  const repeated = (field.mode ?? '').toUpperCase() === 'REPEATED';
   return (
-    <li
-      className="bq-node bq-leaf bq-column"
-      onContextMenu={e =>
-        openMenu(e, [
-          { label: 'Copy column name', onClick: () => copyId(field.name) }
-        ])
-      }
-    >
-      <columnIcon.react
-        tag="span"
-        className="bq-type-icon"
-        width="16px"
-        height="16px"
-      />
-      <span className="bq-label">{field.name}</span>
-      <span className="bq-badge">{field.type.toLowerCase()}</span>
+    <li className="bq-node bq-column">
+      <div
+        className={hasChildren ? 'bq-row' : 'bq-row bq-row-static'}
+        title={hasChildren ? 'Click to expand nested fields' : undefined}
+        onClick={hasChildren ? () => setOpen(o => !o) : undefined}
+        onContextMenu={e =>
+          openMenu(e, [
+            { label: 'Copy column name', onClick: () => copyId(field.name) }
+          ])
+        }
+      >
+        {hasChildren ? <Caret open={open} /> : <span className="bq-caret" />}
+        <columnIcon.react
+          tag="span"
+          className="bq-type-icon"
+          width="16px"
+          height="16px"
+        />
+        <span className="bq-label">{field.name}</span>
+        <span className="bq-badge">{field.type.toLowerCase()}</span>
+        {repeated && (
+          <span className="bq-badge bq-badge-attr" title="Repeated field">
+            repeated
+          </span>
+        )}
+      </div>
+      {hasChildren && open && (
+        <ul className="bq-children">
+          {children.map((c, i) => (
+            <ColumnNode key={`${c.name}-${i}`} field={c} />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

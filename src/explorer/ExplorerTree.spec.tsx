@@ -256,4 +256,59 @@ describe('ExplorerTree', () => {
     expect(await screen.findByText('Refresh project')).toBeInTheDocument();
     expect(screen.getByText('Copy project ID')).toBeInTheDocument();
   });
+
+  // Bug fix: RECORD/STRUCT columns expand to reveal their nested subfields
+  // inline (previously every column rendered as a flat leaf).
+  it('expands a RECORD column to show its nested fields', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'ds', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    mockedApi.listTables.mockResolvedValue({
+      tables: [{ id: 'events', type: 'TABLE' }],
+      nextPageToken: null
+    });
+    mockedApi.getTable.mockResolvedValue({
+      id: 'events',
+      projectId: 'proj-a',
+      datasetId: 'ds',
+      type: 'TABLE',
+      schema: [
+        { name: 'user_id', type: 'STRING', mode: 'NULLABLE', fields: [] },
+        {
+          name: 'address',
+          type: 'RECORD',
+          mode: 'REPEATED',
+          fields: [
+            { name: 'city', type: 'STRING', mode: 'NULLABLE', fields: [] },
+            { name: 'zip', type: 'STRING', mode: 'NULLABLE', fields: [] }
+          ]
+        }
+      ]
+    });
+    renderTree();
+
+    // Drill in: project (auto-open) -> dataset -> table -> record column.
+    fireEvent.click(await screen.findByText('ds', { selector: '.bq-label' }));
+    fireEvent.click(
+      await screen.findByText('events', { selector: '.bq-label' })
+    );
+    const recordCol = await screen.findByText('address', {
+      selector: '.bq-label'
+    });
+    // Nested subfields stay hidden until the record column is expanded.
+    expect(
+      screen.queryByText('city', { selector: '.bq-label' })
+    ).not.toBeInTheDocument();
+    fireEvent.click(recordCol);
+    expect(
+      await screen.findByText('city', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('zip', { selector: '.bq-label' })
+    ).toBeInTheDocument();
+  });
 });
