@@ -20,6 +20,7 @@ from bigquery_jupyter_plugin.services import (
     query_history,
     search,
     serviceusage,
+    stats,
 )
 
 
@@ -153,6 +154,23 @@ class PreviewHandler(APIHandler):
             self,
             lambda: details.preview_table(
                 project_id, dataset_id, table_id, max_results, start_index
+            ),
+        )
+
+
+class TableStatsHandler(APIHandler):
+    """Compute a per-column statistics profile for a table (billable query)."""
+
+    @tornado.web.authenticated
+    async def get(self):
+        project_id = self.get_argument("project_id")
+        dataset_id = self.get_argument("dataset_id")
+        table_id = self.get_argument("table_id")
+        top_values = int(self.get_argument("topValues", default="0"))
+        await _finish_json(
+            self,
+            lambda: stats.table_stats(
+                project_id, dataset_id, table_id, top_values
             ),
         )
 
@@ -301,6 +319,7 @@ def setup_handlers(web_app):
         "datasets": DatasetsHandler,
         "tables": TablesHandler,
         "table": TableHandler,
+        "tableStats": TableStatsHandler,
         "preview": PreviewHandler,
         "dryRun": DryRunHandler,
         "query": QueryHandler,

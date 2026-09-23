@@ -129,6 +129,56 @@ export function getTable(
   );
 }
 
+export interface ITopValue {
+  value: PreviewCell;
+  count: number;
+}
+
+export interface IColumnStats {
+  name: string;
+  type: string;
+  nulls: number;
+  nullFraction: number | null;
+  distinct: number;
+  distinctFraction: number | null;
+  min: PreviewCell;
+  max: PreviewCell;
+  avg: PreviewCell;
+  stddev: PreviewCell;
+  zeros: number | null;
+  zeroFraction: number | null;
+  negatives: number | null;
+  negativeFraction: number | null;
+  infinite: number | null;
+  infiniteFraction: number | null;
+  topValues: ITopValue[];
+}
+
+export interface ITableStats {
+  totalRows: number | null;
+  bytesProcessed?: number | null;
+  columns: IColumnStats[];
+  skipped: string[];
+}
+
+// Compute a per-column statistics profile. This runs a scanning query on the
+// server, so it is billable and only invoked on explicit user action. Passing
+// `topValues > 0` adds an approximate top-N value/count list per column for a
+// value-distribution chart (still one query).
+export function tableStats(
+  projectId: string,
+  datasetId: string,
+  tableId: string,
+  topValues = 0
+): Promise<ITableStats> {
+  const top = topValues ? `&topValues=${topValues}` : '';
+  return requestAPI(
+    `tableStats?project_id=${encodeURIComponent(projectId)}&dataset_id=${encodeURIComponent(
+      datasetId
+    )}&table_id=${encodeURIComponent(tableId)}${top}`
+  );
+}
+
 export function previewTable(
   projectId: string,
   datasetId: string,
