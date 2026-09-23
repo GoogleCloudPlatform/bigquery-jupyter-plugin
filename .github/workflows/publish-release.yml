@@ -1,0 +1,84 @@
+# Step 2 of the Jupyter Releaser flow: publish the draft release prepared by
+# "Step 1: Prep Release".
+#
+# Required repo configuration (see RELEASE.md):
+#   - Environment "release" (this job runs in it).
+#   - GitHub App for pushing the release commit/tag past branch protection:
+#       vars.APP_ID + secrets.APP_PRIVATE_KEY.
+#       (Alternatively, replace the app-token step with secrets.GITHUB_TOKEN if
+#        branch protection permits the bot to push.)
+#   - PyPI auth, one of:
+#       * secrets.PYPI_TOKEN  (token path, matches the current manual release), or
+#       * PyPI Trusted Publishing (OIDC): drop PYPI_TOKEN and rely on the
+#         id-token permission below + a PyPI trusted-publisher configured for
+#         this repo/workflow/environment.
+#   - secrets.NPM_TOKEN only if also publishing the frontend to npm; for a
+#     PyPI-only release, pass the npm publish step name via "steps_to_skip".
+name: 'Step 2: Publish Release'
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'The target branch'
+        required: false
+      release_url:
+        description: 'The URL of the draft GitHub release'
+        required: false
+      steps_to_skip:
+        description: 'Comma separated list of steps to skip'
+        required: false
+
+jobs:
+  publish_release:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: jupyterlab/maintainer-tools/.github/actions/base-setup@21b1cac622018fd37ec13a1c8081da814e10d94e # v1
+
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Scope the token to the minimum the release push needs, rather than
+          # inheriting the app's full installation permissions. Add more
+          # permission-* inputs here if jupyter_releaser needs them at runtime.
+          permission-contents: write
+
+      - name: Populate Release
+        id: populate-release
+        uses: jupyter-server/jupyter_releaser/.github/actions/populate-release@70e58c50c736ad496cca11fe4f2446033b68b027 # v2
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: ${{ github.event.inputs.branch }}
+          release_url: ${{ github.event.inputs.release_url }}
+          steps_to_skip: ${{ github.event.inputs.steps_to_skip }}
+
+      - name: Finalize Release
+        id: finalize-release
+        env:
+          # Token path (default). Remove PYPI_TOKEN to use PyPI Trusted Publishing.
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        uses: jupyter-server/jupyter_releaser/.github/actions/finalize-release@70e58c50c736ad496cca11fe4f2446033b68b027 # v2
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          release_url: ${{ steps.populate-release.outputs.release_url }}
+
+      - name: '** Next Step **'
+        if: ${{ success() }}
+        env:
+          RELEASE_URL: ${{ steps.finalize-release.outputs.release_url }}
+        run: |
+          echo "Verify the final release"
+          echo "$RELEASE_URL"
+
+      - name: '** Failure Message **'
+        if: ${{ failure() }}
+        env:
+          RELEASE_URL: ${{ steps.populate-release.outputs.release_url }}
+        run: |
+          echo "Failed to Publish the Draft Release Url:"
+          echo "$RELEASE_URL"
