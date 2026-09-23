@@ -6,6 +6,10 @@
 }
 
 .bq-explorer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
   padding: 4px 6px;
   font-size: var(--jp-ui-font-size1);
   color: var(--jp-ui-font-color1);
@@ -22,13 +26,45 @@
   font-weight: 600;
 }
 
+.bq-principal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .bq-principal {
+  flex: 1;
+  min-width: 0;
   font-size: var(--jp-ui-font-size0);
   color: var(--jp-ui-font-color2);
-  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Text-and-icon action link, e.g. "Open SQL editor" / "Query history". */
+.bq-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 0;
+  color: var(--jp-content-link-color, #1a73e8);
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* Pinned to the bottom of the explorer via margin-top:auto in the flex column. */
+.bq-footer {
+  margin-top: auto;
+  padding: 6px 2px 2px;
+  border-top: 1px solid var(--jp-border-color2);
 }
 
 .bq-add {
@@ -521,6 +557,28 @@
   background: var(--jp-layout-color0);
   border: 1px solid var(--jp-border-color2);
   border-radius: 3px;
+}
+
+/* Sections of the combined Details tab: Description / Table info / Schema. */
+.bq-dt-section {
+  margin-bottom: 18px;
+}
+
+.bq-dt-section:last-child {
+  margin-bottom: 0;
+}
+
+.bq-dt-section-title {
+  margin: 0 0 6px;
+  font-size: var(--jp-ui-font-size2);
+  font-weight: 400;
+  color: var(--jp-ui-font-color1);
+}
+
+.bq-dt-description {
+  color: var(--jp-ui-font-color1);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .bq-dt-empty,

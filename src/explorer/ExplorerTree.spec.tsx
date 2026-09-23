@@ -81,6 +81,24 @@ describe('ExplorerTree', () => {
     ).toBeInTheDocument();
   });
 
+  // The header "Open SQL editor" link opens an empty query editor.
+  it('opens a query editor from the "Open SQL editor" header link', async () => {
+    const actions = renderTree();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Open SQL editor/ })
+    );
+    expect(actions.openQuery).toHaveBeenCalledWith('');
+  });
+
+  // The footer "Query history" link opens the query-history panel.
+  it('opens query history from the footer link', async () => {
+    const actions = renderTree();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Query history/ })
+    );
+    expect(actions.openHistory).toHaveBeenCalled();
+  });
+
   // CUJ-3: roots are the default project + bigquery-public-data.
   it('roots the tree at the default project and public data', async () => {
     renderTree();
@@ -440,8 +458,8 @@ describe('ExplorerTree', () => {
     expect(screen.getByText('Refresh dataset')).toBeInTheDocument();
   });
 
-  // CUJ-12: "Refresh all" re-fetches from the backend.
-  it('re-fetches datasets when Refresh all is clicked', async () => {
+  // CUJ-12: the header "Reload" icon re-fetches from the backend.
+  it('re-fetches datasets when Reload is clicked', async () => {
     mockedApi.listDatasets.mockImplementation((projectId: string) =>
       Promise.resolve({
         datasets:
@@ -455,7 +473,7 @@ describe('ExplorerTree', () => {
     );
     await screen.findByText('sales');
     const before = mockedApi.listDatasets.mock.calls.length;
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() =>
       expect(mockedApi.listDatasets.mock.calls.length).toBeGreaterThan(before)
     );

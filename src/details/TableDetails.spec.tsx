@@ -74,16 +74,22 @@ beforeEach(() => {
 });
 
 describe('TableDetails', () => {
-  // CUJ-10 / CUJ-11: Schema tab is active by default and renders nested
-  // RECORD fields (indented child rows).
-  it('renders the schema with nested RECORD fields by default', async () => {
+  // CUJ-10 / CUJ-11: the Details tab is the default and combines the table
+  // metadata with the schema (nested RECORD fields shown as indented child
+  // rows). The former standalone Schema tab is merged in, not a separate tab.
+  it('combines table info and the nested schema on the default Details tab', async () => {
     renderDetails();
+    // Schema fields, incl. a nested RECORD subfield and REPEATED mode...
     expect(await screen.findByText('user_id')).toBeInTheDocument();
     expect(screen.getByText('address')).toBeInTheDocument();
-    // The nested subfield proves SchemaRows recursed into the RECORD.
     expect(screen.getByText('city')).toBeInTheDocument();
-    // REPEATED mode is surfaced (only the address column is repeated).
     expect(screen.getByText('REPEATED')).toBeInTheDocument();
+    // ...render alongside the table metadata, all without switching tabs.
+    expect(screen.getByText('proj.ds.events')).toBeInTheDocument();
+    // The Schema tab was folded into Details, so it no longer exists.
+    expect(
+      screen.queryByRole('button', { name: 'Schema' })
+    ).not.toBeInTheDocument();
   });
 
   // CUJ-12: the Details tab lists table metadata, partitioning and clustering.

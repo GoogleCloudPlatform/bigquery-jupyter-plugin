@@ -25,7 +25,7 @@ const PREVIEW_PAGE_SIZE = 100;
 // sources) has no stored rows to page through, so the Preview tab is hidden.
 const PREVIEWABLE_TYPES = ['TABLE', 'MATERIALIZED_VIEW', 'SNAPSHOT'];
 
-type Tab = 'schema' | 'details' | 'preview' | 'query';
+type Tab = 'details' | 'preview' | 'query';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -94,7 +94,7 @@ function SchemaRows({
   );
 }
 
-function SchemaTab({ meta }: { meta: ITableMeta }): JSX.Element {
+function SchemaTable({ meta }: { meta: ITableMeta }): JSX.Element {
   if (!meta.schema || meta.schema.length === 0) {
     return <div className="bq-dt-empty">No schema.</div>;
   }
@@ -115,6 +115,9 @@ function SchemaTab({ meta }: { meta: ITableMeta }): JSX.Element {
   );
 }
 
+// The Details tab combines the table's description, metadata ("Table info") and
+// its schema in one scrollable view, mirroring the BigQuery console's table
+// Details page rather than splitting schema into a separate tab.
 function DetailsTab({ meta }: { meta: ITableMeta }): JSX.Element {
   const rows: [string, string][] = [
     ['Table ID', `${meta.projectId}.${meta.datasetId}.${meta.id}`],
@@ -139,20 +142,32 @@ function DetailsTab({ meta }: { meta: ITableMeta }): JSX.Element {
   if (meta.clusteringFields && meta.clusteringFields.length > 0) {
     rows.push(['Clustered by', meta.clusteringFields.join(', ')]);
   }
-  if (meta.description) {
-    rows.push(['Description', meta.description]);
-  }
   return (
-    <table className="bq-dt-table bq-dt-meta">
-      <tbody>
-        {rows.map(([k, v]) => (
-          <tr key={k}>
-            <td className="bq-dt-key">{k}</td>
-            <td>{v}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="bq-dt-details">
+      {meta.description && (
+        <section className="bq-dt-section">
+          <h3 className="bq-dt-section-title">Description</h3>
+          <div className="bq-dt-description">{meta.description}</div>
+        </section>
+      )}
+      <section className="bq-dt-section">
+        <h3 className="bq-dt-section-title">Table info</h3>
+        <table className="bq-dt-table bq-dt-meta">
+          <tbody>
+            {rows.map(([k, v]) => (
+              <tr key={k}>
+                <td className="bq-dt-key">{k}</td>
+                <td>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <section className="bq-dt-section">
+        <h3 className="bq-dt-section-title">Schema</h3>
+        <SchemaTable meta={meta} />
+      </section>
+    </div>
   );
 }
 
@@ -230,16 +245,13 @@ export function TableDetails({
   const previewable = canPreview(tref.tableType);
   const isView = tref.tableType.toUpperCase() === 'VIEW';
   const reason = previewable ? null : noPreviewReason(tref.tableType);
-  const [tab, setTab] = useState<Tab>('schema');
+  const [tab, setTab] = useState<Tab>('details');
   const meta = useQuery({
     queryKey: ['table', tref.projectId, tref.datasetId, tref.tableId],
     queryFn: () => getTable(tref.projectId, tref.datasetId, tref.tableId)
   });
 
-  const tabs: [Tab, string][] = [
-    ['schema', 'Schema'],
-    ['details', 'Details']
-  ];
+  const tabs: [Tab, string][] = [['details', 'Details']];
   if (previewable) {
     tabs.push(['preview', 'Preview']);
   }
@@ -292,7 +304,6 @@ export function TableDetails({
         {meta.isError && (
           <div className="bq-dt-error">{errorMessage(meta.error)}</div>
         )}
-        {meta.data && tab === 'schema' && <SchemaTab meta={meta.data} />}
         {meta.data && tab === 'details' && <DetailsTab meta={meta.data} />}
         {tab === 'preview' && previewable && <PreviewTab tref={tref} />}
         {meta.data && tab === 'query' && <QueryTab meta={meta.data} />}

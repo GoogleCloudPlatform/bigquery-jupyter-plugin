@@ -43,10 +43,8 @@ import {
   addIcon,
   columnIcon,
   datasetIcon,
-  historyIcon,
   iconForTableType,
   projectIcon,
-  queryIcon,
   searchClearIcon,
   searchIcon
 } from '../icons';
@@ -1029,33 +1027,26 @@ function ExplorerTreeInner({
         <span className="bq-title">Dataset explorer</span>
         <span className="bq-header-actions">
           <button
-            className="bq-icon-btn"
-            title="Open query editor"
-            aria-label="Open query editor"
+            className="bq-link-btn"
+            title="Open a BigQuery query editor"
             onClick={() => actions.openQuery('')}
           >
-            <queryIcon.react tag="span" width="18px" height="18px" />
-          </button>
-          <button
-            className="bq-icon-btn"
-            title="Query history"
-            aria-label="Query history"
-            onClick={() => actions.openHistory()}
-          >
-            <historyIcon.react tag="span" width="18px" height="18px" />
-          </button>
-          <button
-            className="bq-icon-btn"
-            title="Refresh all"
-            aria-label="Refresh all"
-            onClick={() => queryClient.invalidateQueries()}
-          >
-            {'\u27f3'}
+            Open SQL editor
           </button>
         </span>
       </div>
-      <div className="bq-principal" title="Active identity">
-        {cfg.data ? (cfg.data.principal ?? 'no identity') : '…'}
+      <div className="bq-principal-row">
+        <span className="bq-principal" title="Active identity">
+          {cfg.data ? (cfg.data.principal ?? 'no identity') : '…'}
+        </span>
+        <button
+          className="bq-icon-btn"
+          title="Reload projects and datasets"
+          aria-label="Reload"
+          onClick={() => queryClient.invalidateQueries()}
+        >
+          {'\u27f3'}
+        </button>
       </div>
       <BigQueryApiNotice billingProject={cfg.data?.project ?? null} />
       <form className="bq-add" onSubmit={e => void onAdd(e)}>
@@ -1124,6 +1115,15 @@ function ExplorerTreeInner({
           ))}
         </ul>
       )}
+      <div className="bq-footer">
+        <button
+          className="bq-link-btn"
+          title="Show recent BigQuery queries"
+          onClick={() => actions.openHistory()}
+        >
+          Query history
+        </button>
+      </div>
     </div>
   );
 }
