@@ -125,7 +125,8 @@ describe('ExplorerTree', () => {
     ).not.toBeInTheDocument();
   });
 
-  // CUJ-4: the default (auto-opened) project lists its datasets.
+  // CUJ-4: expanding the default project lists its datasets (projects start
+  // collapsed, so the datasets are nested until the project is expanded).
   it('lists datasets for the default project', async () => {
     mockedApi.listDatasets.mockImplementation((projectId: string) =>
       Promise.resolve({
@@ -135,6 +136,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     expect(await screen.findByText('sales')).toBeInTheDocument();
     expect(mockedApi.listDatasets).toHaveBeenCalledWith('proj-a', undefined);
   });
@@ -147,6 +151,9 @@ describe('ExplorerTree', () => {
         : Promise.resolve({ datasets: [], nextPageToken: null })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     expect(
       await screen.findByText(/404 Not found: Project proj-a/)
     ).toBeInTheDocument();
@@ -190,6 +197,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText(/No datasets/);
     const hint = document.querySelector('.bq-empty-hint') as HTMLElement;
     expect(hint).toBeTruthy();
@@ -219,6 +229,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText(/No datasets/);
     const cmd = document.querySelector('.bq-cmd-text') as HTMLElement;
     expect(cmd).toHaveTextContent(`--member="serviceAccount:${sa}"`);
@@ -291,7 +304,10 @@ describe('ExplorerTree', () => {
     });
     renderTree();
 
-    // Drill in: project (auto-open) -> dataset -> table -> record column.
+    // Drill in: project -> dataset -> table -> record column.
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('ds', { selector: '.bq-label' }));
     fireEvent.click(
       await screen.findByText('events', { selector: '.bq-label' })
@@ -326,6 +342,9 @@ describe('ExplorerTree', () => {
       nextPageToken: null
     });
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('sales'));
     expect(await screen.findByText('orders')).toBeInTheDocument();
     expect(
@@ -353,6 +372,9 @@ describe('ExplorerTree', () => {
       nextPageToken: null
     });
     const actions = renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('sales'));
     fireEvent.contextMenu(await screen.findByText('orders'));
     expect(await screen.findByText('Open details')).toBeInTheDocument();
@@ -379,6 +401,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.contextMenu(await screen.findByText('sales'));
     expect(await screen.findByText('Copy dataset ID')).toBeInTheDocument();
     expect(screen.getByText('Refresh dataset')).toBeInTheDocument();
@@ -394,6 +419,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText('sales');
     const before = mockedApi.listDatasets.mock.calls.length;
     fireEvent.click(screen.getByRole('button', { name: 'Refresh all' }));

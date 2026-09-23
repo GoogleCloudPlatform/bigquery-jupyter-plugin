@@ -252,17 +252,27 @@ export function TableDetails({
   return (
     <div className="bq-dt">
       <div className="bq-dt-header">
-        <div className="bq-dt-title">
-          {tref.projectId}.{tref.datasetId}.<b>{tref.tableId}</b>
+        <div className="bq-dt-heading">{tref.tableId}</div>
+        <div className="bq-dt-fqid">
+          {tref.projectId}.{tref.datasetId}
         </div>
         {onQuery && (
-          <button
-            className="bq-dt-query-btn"
-            title="Open a query editor for this table"
-            onClick={() => onQuery(`SELECT * FROM \`${fqId}\` LIMIT 1000`)}
-          >
-            Query table
-          </button>
+          <div className="bq-dt-actions">
+            <button
+              className="bq-dt-action"
+              title="Open a query editor for this table"
+              onClick={() => onQuery(`SELECT * FROM \`${fqId}\` LIMIT 1000`)}
+            >
+              <svg
+                className="bq-dt-action-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zM14.6 16.6 19.2 12l-4.6-4.6L16 6l6 6-6 6z" />
+              </svg>
+              Query table
+            </button>
+          </div>
         )}
       </div>
       <div className="bq-dt-tabs">

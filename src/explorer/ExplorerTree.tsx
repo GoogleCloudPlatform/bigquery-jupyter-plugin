@@ -1095,11 +1095,10 @@ function ExplorerTreeInner({
         />
       ) : (
         <ul className="bq-tree">
-          {roots.map((p, i) => (
+          {roots.map(p => (
             <ProjectNode
               key={p}
               projectId={p}
-              defaultOpen={i === 0}
               filter={filter}
               principal={cfg.data?.principal ?? null}
               onRemove={
