@@ -85,7 +85,13 @@ test('Copy DataFrame code button copies a snippet and notifies', async ({
 // no real BigQuery access, consistent with the rest of this smoke suite.
 test('inline query statistics render after a run', async ({ page }) => {
   const MB = 1024 * 1024;
-  await page.route('**/bigquery-jupyter-plugin/dryRun', route =>
+  // ServerConnection.makeRequest appends a cache-busting `?<nonce>` to every
+  // request URL, so the route patterns must tolerate a trailing query string.
+  // A plain glob like `.../query` misses `.../query?123` and the request falls
+  // through to the real backend (which then fails on missing ADC in CI). The
+  // `query` matcher is anchored with `(\?|$)` so it does not also swallow
+  // `queryResults`/`queryHistory`.
+  await page.route(/\/bigquery-jupyter-plugin\/dryRun(\?|$)/, route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -96,7 +102,7 @@ test('inline query statistics render after a run', async ({ page }) => {
       })
     })
   );
-  await page.route('**/bigquery-jupyter-plugin/query', route =>
+  await page.route(/\/bigquery-jupyter-plugin\/query(\?|$)/, route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
