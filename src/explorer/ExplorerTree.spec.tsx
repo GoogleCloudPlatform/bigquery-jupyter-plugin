@@ -10,6 +10,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Clipboard } from '@jupyterlab/apputils';
 import { ExplorerTree } from './ExplorerTree';
 import * as api from './api';
 import { ITableActions } from './TableActions';
@@ -389,6 +390,36 @@ describe('ExplorerTree', () => {
         tableType: 'TABLE'
       })
     );
+  });
+
+  // Clipboard parity with the old plugin: right-click a table -> "Copy
+  // boilerplate query" copies a starter SELECT for the fully-qualified table.
+  it('copies a boilerplate query from the table context menu', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    mockedApi.listTables.mockResolvedValue({
+      tables: [{ id: 'orders', type: 'TABLE' }],
+      nextPageToken: null
+    });
+    const copySpy = jest
+      .spyOn(Clipboard, 'copyToSystem')
+      .mockImplementation(() => undefined);
+    renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
+    fireEvent.click(await screen.findByText('sales'));
+    fireEvent.contextMenu(await screen.findByText('orders'));
+    fireEvent.click(await screen.findByText('Copy boilerplate query'));
+    expect(copySpy).toHaveBeenCalledWith(
+      'SELECT * FROM `proj-a.sales.orders` LIMIT 1000'
+    );
+    copySpy.mockRestore();
   });
 
   // CUJ-11: a dataset's context menu offers Copy dataset ID / Refresh dataset.

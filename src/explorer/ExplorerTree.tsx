@@ -76,6 +76,17 @@ function copyId(id: string): void {
   Notification.success(`Copied: ${id}`, { autoClose: 2000 });
 }
 
+// A starter "SELECT * … LIMIT 1000" for a table, shared by the prefilled query
+// editor ("Query table") and the clipboard copy ("Copy boilerplate query").
+function boilerplateQuery(fqId: string): string {
+  return `SELECT * FROM \`${fqId}\` LIMIT 1000`;
+}
+
+function copyBoilerplateQuery(fqId: string): void {
+  Clipboard.copyToSystem(boilerplateQuery(fqId));
+  Notification.success('Copied boilerplate query', { autoClose: 2000 });
+}
+
 // Build the exact gcloud command that grants the dataset-viewer role, using the
 // correct IAM member type: a *.gserviceaccount.com principal is a serviceAccount,
 // anything else is a user. (An invalid prefix like "user-or-serviceAccount:" is
@@ -208,8 +219,7 @@ function TableNode({
       tableId: table.id,
       tableType: table.type
     });
-  const queryTable = (): void =>
-    actions.openQuery(`SELECT * FROM \`${fqId}\` LIMIT 1000`);
+  const queryTable = (): void => actions.openQuery(boilerplateQuery(fqId));
   const q = useQuery({
     queryKey: ['table', projectId, datasetId, table.id],
     queryFn: () => getTable(projectId, datasetId, table.id),
@@ -228,6 +238,10 @@ function TableNode({
           openMenu(e, [
             { label: 'Open details', onClick: openDetails },
             { label: 'Query table', onClick: queryTable },
+            {
+              label: 'Copy boilerplate query',
+              onClick: () => copyBoilerplateQuery(fqId)
+            },
             { label: 'Copy table ID', onClick: () => copyId(fqId) }
           ])
         }
