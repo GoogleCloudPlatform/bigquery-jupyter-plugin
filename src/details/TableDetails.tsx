@@ -13,7 +13,10 @@ import {
   getTable,
   ISchemaField,
   ITableMeta,
-  previewTable
+  ITopValue,
+  PreviewCell,
+  previewTable,
+  tableStats
 } from '../explorer/api';
 import { ITableRef } from '../explorer/TableActions';
 import { PagerBar, ResultsGrid } from '../common/ResultsView';
@@ -25,7 +28,7 @@ const PREVIEW_PAGE_SIZE = 100;
 // sources) has no stored rows to page through, so the Preview tab is hidden.
 const PREVIEWABLE_TYPES = ['TABLE', 'MATERIALIZED_VIEW', 'SNAPSHOT'];
 
-type Tab = 'details' | 'preview' | 'query';
+type Tab = 'details' | 'preview' | 'query' | 'stats';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -235,6 +238,189 @@ function QueryTab({ meta }: { meta: ITableMeta }): JSX.Element {
   return <pre className="bq-dt-query">{meta.viewQuery}</pre>;
 }
 
+function humanPercent(fraction: number | null | undefined): string {
+  if (fraction === null || fraction === undefined) {
+    return '—';
+  }
+  const pct = fraction * 100;
+  // Keep small non-zero fractions visible instead of rounding them to 0.0%.
+  const digits = pct > 0 && pct < 0.1 ? 2 : 1;
+  return `${pct.toFixed(digits)}%`;
+}
+
+// Render a numeric/temporal stat cell. Numbers are locale-formatted (integers
+// grouped, floats capped to a few decimals); everything else is shown as-is.
+function statCell(value: PreviewCell): string {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  if (typeof value === 'number') {
+    return Number.isInteger(value)
+      ? value.toLocaleString()
+      : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  }
+  return String(value);
+}
+
+// Render a "count (percent)" stat cell; "—" when the count is not applicable
+// (e.g. numeric-only counts on a non-numeric column).
+function countCell(
+  count: number | null | undefined,
+  fraction: number | null | undefined
+): string {
+  if (count === null || count === undefined) {
+    return '—';
+  }
+  return `${humanNumber(count)} (${humanPercent(fraction ?? null)})`;
+}
+
+const TOP_N = 10;
+
+// A compact horizontal bar chart of a column's most frequent values.
+function TopValuesChart({ values }: { values: ITopValue[] }): JSX.Element {
+  if (!values || values.length === 0) {
+    return <div className="bq-dt-empty">No values.</div>;
+  }
+  const max = Math.max(...values.map(v => v.count), 1);
+  return (
+    <div className="bq-dt-topvals">
+      {values.map((v, i) => {
+        const label =
+          v.value === null || v.value === undefined
+            ? '(null)'
+            : String(v.value);
+        return (
+          <div className="bq-dt-topval" key={`${i}-${label}`}>
+            <span className="bq-dt-topval-label" title={label}>
+              {label}
+            </span>
+            <span className="bq-dt-topval-bar">
+              <span
+                className="bq-dt-topval-fill"
+                style={{ width: `${(v.count / max) * 100}%` }}
+              />
+            </span>
+            <span className="bq-dt-topval-count">{humanNumber(v.count)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// On-demand per-column profile. Mounted only after the user clicks "Generate
+// Statistics", so the (billable) query runs on that explicit action, not on
+// opening the table. The "top values" toggle adds an approximate per-column
+// value distribution (still one query, via APPROX_TOP_COUNT).
+function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
+  const [showTopValues, setShowTopValues] = useState(false);
+  const q = useQuery({
+    queryKey: [
+      'tableStats',
+      tref.projectId,
+      tref.datasetId,
+      tref.tableId,
+      showTopValues
+    ],
+    queryFn: () =>
+      tableStats(
+        tref.projectId,
+        tref.datasetId,
+        tref.tableId,
+        showTopValues ? TOP_N : 0
+      ),
+    placeholderData: keepPreviousData
+  });
+  if (q.isLoading && !q.data) {
+    return (
+      <div className="bq-dt-empty">
+        Computing statistics… (this runs a query over the table)
+      </div>
+    );
+  }
+  if (q.isError) {
+    return <div className="bq-dt-error">{errorMessage(q.error)}</div>;
+  }
+  const data = q.data;
+  if (!data) {
+    return <div className="bq-dt-empty">No statistics.</div>;
+  }
+  return (
+    <div className="bq-dt-stats">
+      <div className="bq-dt-stats-bar">
+        <span className="bq-dt-stats-summary">
+          {humanNumber(data.totalRows)} rows
+          {data.bytesProcessed !== null &&
+            data.bytesProcessed !== undefined &&
+            ` · ${humanBytes(data.bytesProcessed)} processed`}
+        </span>
+        <label className="bq-dt-stats-toggle">
+          <input
+            type="checkbox"
+            checked={showTopValues}
+            onChange={e => setShowTopValues(e.target.checked)}
+          />
+          Show top values (approximate)
+          {q.isFetching && showTopValues ? ' …' : ''}
+        </label>
+      </div>
+      {data.columns.length === 0 ? (
+        <div className="bq-dt-empty">No scalar columns to profile.</div>
+      ) : (
+        <table className="bq-dt-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Nulls</th>
+              <th>Distinct</th>
+              <th>Min</th>
+              <th>Max</th>
+              <th>Avg</th>
+              <th>Stddev</th>
+              <th>Zeros</th>
+              <th>Negatives</th>
+              <th>Infinite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.columns.map(c => (
+              <tr key={c.name}>
+                <td>{c.name}</td>
+                <td className="bq-dt-type">{c.type}</td>
+                <td>{countCell(c.nulls, c.nullFraction)}</td>
+                <td>{countCell(c.distinct, c.distinctFraction)}</td>
+                <td>{statCell(c.min)}</td>
+                <td>{statCell(c.max)}</td>
+                <td>{statCell(c.avg)}</td>
+                <td>{statCell(c.stddev)}</td>
+                <td>{countCell(c.zeros, c.zeroFraction)}</td>
+                <td>{countCell(c.negatives, c.negativeFraction)}</td>
+                <td>{countCell(c.infinite, c.infiniteFraction)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {showTopValues && data.columns.length > 0 && (
+        <div className="bq-dt-topgrid">
+          {data.columns.map(c => (
+            <div className="bq-dt-topcard" key={c.name}>
+              <div className="bq-dt-topcard-title">{c.name}</div>
+              <TopValuesChart values={c.topValues} />
+            </div>
+          ))}
+        </div>
+      )}
+      {data.skipped.length > 0 && (
+        <div className="bq-dt-stats-skipped">
+          Not profiled (nested or repeated): {data.skipped.join(', ')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TableDetails({
   tref,
   onQuery
@@ -246,6 +432,9 @@ export function TableDetails({
   const isView = tref.tableType.toUpperCase() === 'VIEW';
   const reason = previewable ? null : noPreviewReason(tref.tableType);
   const [tab, setTab] = useState<Tab>('details');
+  // The Statistics tab appears only once the user asks for it (the profile is a
+  // billable query), and stays available afterwards.
+  const [statsRequested, setStatsRequested] = useState(false);
   const meta = useQuery({
     queryKey: ['table', tref.projectId, tref.datasetId, tref.tableId],
     queryFn: () => getTable(tref.projectId, tref.datasetId, tref.tableId)
@@ -258,6 +447,9 @@ export function TableDetails({
   if (isView) {
     tabs.push(['query', 'Query']);
   }
+  if (statsRequested) {
+    tabs.push(['stats', 'Statistics']);
+  }
 
   const fqId = `${tref.projectId}.${tref.datasetId}.${tref.tableId}`;
 
@@ -268,8 +460,8 @@ export function TableDetails({
         <div className="bq-dt-fqid">
           {tref.projectId}.{tref.datasetId}
         </div>
-        {onQuery && (
-          <div className="bq-dt-actions">
+        <div className="bq-dt-actions">
+          {onQuery && (
             <button
               className="bq-dt-action"
               title="Open a query editor for this table"
@@ -284,8 +476,25 @@ export function TableDetails({
               </svg>
               Query table
             </button>
-          </div>
-        )}
+          )}
+          <button
+            className="bq-dt-action"
+            title="Compute per-column statistics (runs a query over the table)"
+            onClick={() => {
+              setStatsRequested(true);
+              setTab('stats');
+            }}
+          >
+            <svg
+              className="bq-dt-action-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M4 13h4v7H4zM10 4h4v16h-4zM16 9h4v11h-4z" />
+            </svg>
+            Generate Statistics
+          </button>
+        </div>
       </div>
       <div className="bq-dt-tabs">
         {tabs.map(([id, label]) => (
@@ -307,6 +516,7 @@ export function TableDetails({
         {meta.data && tab === 'details' && <DetailsTab meta={meta.data} />}
         {tab === 'preview' && previewable && <PreviewTab tref={tref} />}
         {meta.data && tab === 'query' && <QueryTab meta={meta.data} />}
+        {statsRequested && tab === 'stats' && <StatisticsTab tref={tref} />}
       </div>
     </div>
   );
