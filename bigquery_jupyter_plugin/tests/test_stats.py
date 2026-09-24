@@ -141,6 +141,31 @@ def test_table_stats_top_values_toggle():
     ]
 
 
+def test_table_stats_runs_query_in_billing_project():
+    # Profiling a table in a read-only project (e.g. bigquery-public-data) must
+    # build the client with the caller's billing project, not the table's.
+    schema = [bigquery.SchemaField("id", "INTEGER")]
+    row = {
+        "total_rows": 1,
+        "c0_nulls": 0,
+        "c0_distinct": 1,
+        "c0_min": 1,
+        "c0_max": 1,
+        "c0_avg": 1.0,
+        "c0_stddev": 0.0,
+        "c0_zeros": 0,
+        "c0_negatives": 0,
+    }
+    client = _client_returning(_FakeTable(schema, num_rows=1), row)
+    with mock.patch.object(
+        stats._bq_client, "get_bq_client", return_value=client
+    ) as gbc:
+        stats.table_stats(
+            "bigquery-public-data", "d", "t", billing_project="my-billing"
+        )
+    gbc.assert_called_once_with(project="my-billing")
+
+
 def test_table_stats_no_scalar_columns_skips_query():
     schema = [
         bigquery.SchemaField("tags", "STRING", mode="REPEATED"),

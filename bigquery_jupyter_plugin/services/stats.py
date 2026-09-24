@@ -89,8 +89,18 @@ def _top_list(raw):
     return out
 
 
-def table_stats(project_id, dataset_id, table_id, top_values=0):
+def table_stats(
+    project_id, dataset_id, table_id, top_values=0, billing_project=None
+):
     """Compute a per-column profile for a table via one aggregation query.
+
+    The profiling query runs in ``billing_project`` (the caller's billing
+    project) — not the table's ``project_id`` — so profiling a table in a
+    read-only project such as ``bigquery-public-data`` bills the user's project,
+    where they hold ``bigquery.jobs.create``. Table metadata (``tables.get``) is
+    read cross-project, so a client bound to the billing project still resolves
+    the table. When ``billing_project`` is omitted, the ADC default project is
+    used.
 
     Returns ``{totalRows, bytesProcessed, columns, skipped}``. Each entry in
     ``columns`` is ``{name, type, nulls, nullFraction, distinct,
@@ -101,7 +111,7 @@ def table_stats(project_id, dataset_id, table_id, top_values=0):
     is set. ``skipped`` lists nested/repeated column names excluded from the
     profile.
     """
-    client = _bq_client.get_bq_client(project=project_id)
+    client = _bq_client.get_bq_client(project=billing_project or None)
     ref = bigquery.TableReference(
         bigquery.DatasetReference(project_id, dataset_id), table_id
     )

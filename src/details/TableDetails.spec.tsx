@@ -48,14 +48,19 @@ function meta(overrides: Partial<api.ITableMeta> = {}): api.ITableMeta {
 
 function renderDetails(
   tref: ITableRef = TABLE_REF,
-  onQuery?: (sql: string) => void
+  onQuery?: (sql: string) => void,
+  billingProject: string | null = 'bill-proj'
 ): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } }
   });
   render(
     <QueryClientProvider client={client}>
-      <TableDetails tref={tref} onQuery={onQuery} />
+      <TableDetails
+        tref={tref}
+        onQuery={onQuery}
+        billingProject={billingProject}
+      />
     </QueryClientProvider>
   );
 }
@@ -178,12 +183,13 @@ describe('TableDetails', () => {
       screen.getByRole('button', { name: 'Statistics' })
     ).toBeInTheDocument();
     expect(screen.getByText(/Not profiled/)).toHaveTextContent('address');
-    // Default request does not compute top values.
+    // Default request does not compute top values; billing project is passed.
     expect(mockedApi.tableStats).toHaveBeenCalledWith(
       'proj',
       'ds',
       'events',
-      0
+      0,
+      'bill-proj'
     );
   });
 
@@ -205,7 +211,8 @@ describe('TableDetails', () => {
         'proj',
         'ds',
         'events',
-        10
+        10,
+        'bill-proj'
       )
     );
   });

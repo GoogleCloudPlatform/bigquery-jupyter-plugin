@@ -79,6 +79,7 @@ def get_table(project_id, dataset_id, table_id):
         ),
         "clusteringFields": table.clustering_fields,
         "viewQuery": table.view_query,
+        "labels": dict(getattr(table, "labels", None) or {}),
     }
 
 
