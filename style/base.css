@@ -610,6 +610,12 @@
   white-space: nowrap;
 }
 
+/* Small "ⓘ" affordance carrying an explanatory tooltip. */
+.bq-dt-info {
+  color: var(--jp-ui-font-color3);
+  cursor: help;
+}
+
 /* Per-column top-value distribution charts (shown when the toggle is on). */
 .bq-dt-topgrid {
   display: grid;

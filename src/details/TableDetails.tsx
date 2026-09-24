@@ -275,6 +275,10 @@ function countCell(
 }
 
 const TOP_N = 10;
+const TOP_VALUES_HELP =
+  `Adds each column's ${TOP_N} most frequent values as mini bar charts, ` +
+  'estimated with APPROX_TOP_COUNT — a fast approximate count, not exact. ' +
+  'Computed in the same single query (no extra table scan).';
 
 // A compact horizontal bar chart of a column's most frequent values.
 function TopValuesChart({ values }: { values: ITopValue[] }): JSX.Element {
@@ -354,7 +358,7 @@ function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
             data.bytesProcessed !== undefined &&
             ` · ${humanBytes(data.bytesProcessed)} processed`}
         </span>
-        <label className="bq-dt-stats-toggle">
+        <label className="bq-dt-stats-toggle" title={TOP_VALUES_HELP}>
           <input
             type="checkbox"
             checked={showTopValues}
@@ -362,6 +366,13 @@ function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
           />
           Show top values (approximate)
           {q.isFetching && showTopValues ? ' …' : ''}
+          <span
+            className="bq-dt-info"
+            aria-hidden="true"
+            title={TOP_VALUES_HELP}
+          >
+            {'\u24D8'}
+          </span>
         </label>
       </div>
       {data.columns.length === 0 ? (
