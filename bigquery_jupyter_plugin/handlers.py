@@ -167,10 +167,11 @@ class TableStatsHandler(APIHandler):
         dataset_id = self.get_argument("dataset_id")
         table_id = self.get_argument("table_id")
         top_values = int(self.get_argument("topValues", default="0"))
+        billing_project = self.get_argument("billingProject", default="") or None
         await _finish_json(
             self,
             lambda: stats.table_stats(
-                project_id, dataset_id, table_id, top_values
+                project_id, dataset_id, table_id, top_values, billing_project
             ),
         )
 

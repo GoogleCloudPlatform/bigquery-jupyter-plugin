@@ -70,6 +70,7 @@ export interface ITableMeta {
   timePartitioning?: ITimePartitioning | null;
   clusteringFields?: string[] | null;
   viewQuery?: string | null;
+  labels?: Record<string, string> | null;
 }
 
 export type PreviewCell = string | number | boolean | null | object;
@@ -169,13 +170,17 @@ export function tableStats(
   projectId: string,
   datasetId: string,
   tableId: string,
-  topValues = 0
+  topValues = 0,
+  billingProject?: string | null
 ): Promise<ITableStats> {
   const top = topValues ? `&topValues=${topValues}` : '';
+  const bill = billingProject
+    ? `&billingProject=${encodeURIComponent(billingProject)}`
+    : '';
   return requestAPI(
     `tableStats?project_id=${encodeURIComponent(projectId)}&dataset_id=${encodeURIComponent(
       datasetId
-    )}&table_id=${encodeURIComponent(tableId)}${top}`
+    )}&table_id=${encodeURIComponent(tableId)}${top}${bill}`
   );
 }
 

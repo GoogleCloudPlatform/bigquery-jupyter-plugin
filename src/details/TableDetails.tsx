@@ -145,14 +145,29 @@ function DetailsTab({ meta }: { meta: ITableMeta }): JSX.Element {
   if (meta.clusteringFields && meta.clusteringFields.length > 0) {
     rows.push(['Clustered by', meta.clusteringFields.join(', ')]);
   }
+  const labelEntries = Object.entries(meta.labels ?? {});
   return (
     <div className="bq-dt-details">
-      {meta.description && (
+      <div className="bq-dt-desc-grid">
         <section className="bq-dt-section">
           <h3 className="bq-dt-section-title">Description</h3>
-          <div className="bq-dt-description">{meta.description}</div>
+          <div className="bq-dt-description">{meta.description || 'None'}</div>
         </section>
-      )}
+        <section className="bq-dt-section">
+          <h3 className="bq-dt-section-title">Labels</h3>
+          {labelEntries.length === 0 ? (
+            <div className="bq-dt-description">None</div>
+          ) : (
+            <div className="bq-dt-labels">
+              {labelEntries.map(([k, v]) => (
+                <span className="bq-dt-label" key={k}>
+                  {v ? `${k}: ${v}` : k}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
       <section className="bq-dt-section">
         <h3 className="bq-dt-section-title">Table info</h3>
         <table className="bq-dt-table bq-dt-meta">
@@ -316,7 +331,13 @@ function TopValuesChart({ values }: { values: ITopValue[] }): JSX.Element {
 // Statistics", so the (billable) query runs on that explicit action, not on
 // opening the table. The "top values" toggle adds an approximate per-column
 // value distribution (still one query, via APPROX_TOP_COUNT).
-function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
+function StatisticsTab({
+  tref,
+  billingProject
+}: {
+  tref: ITableRef;
+  billingProject?: string | null;
+}): JSX.Element {
   const [showTopValues, setShowTopValues] = useState(false);
   const q = useQuery({
     queryKey: [
@@ -331,7 +352,8 @@ function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
         tref.projectId,
         tref.datasetId,
         tref.tableId,
-        showTopValues ? TOP_N : 0
+        showTopValues ? TOP_N : 0,
+        billingProject
       ),
     placeholderData: keepPreviousData
   });
@@ -434,10 +456,12 @@ function StatisticsTab({ tref }: { tref: ITableRef }): JSX.Element {
 
 export function TableDetails({
   tref,
-  onQuery
+  onQuery,
+  billingProject
 }: {
   tref: ITableRef;
   onQuery?: (sql: string) => void;
+  billingProject?: string | null;
 }): JSX.Element {
   const previewable = canPreview(tref.tableType);
   const isView = tref.tableType.toUpperCase() === 'VIEW';
@@ -527,7 +551,9 @@ export function TableDetails({
         {meta.data && tab === 'details' && <DetailsTab meta={meta.data} />}
         {tab === 'preview' && previewable && <PreviewTab tref={tref} />}
         {meta.data && tab === 'query' && <QueryTab meta={meta.data} />}
-        {statsRequested && tab === 'stats' && <StatisticsTab tref={tref} />}
+        {statsRequested && tab === 'stats' && (
+          <StatisticsTab tref={tref} billingProject={billingProject} />
+        )}
       </div>
     </div>
   );

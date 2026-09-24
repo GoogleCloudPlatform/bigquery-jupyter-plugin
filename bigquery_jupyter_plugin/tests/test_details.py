@@ -86,6 +86,7 @@ def test_get_table_shape_and_serialization():
         require_partition_filter=True,
         clustering_fields=["id"],
         view_query=None,
+        labels={"env": "prod"},
     )
     client = mock.MagicMock()
     client.get_table.return_value = table
@@ -102,6 +103,7 @@ def test_get_table_shape_and_serialization():
     assert out["timePartitioning"]["field"] == "ts"
     assert out["timePartitioning"]["requirePartitionFilter"] is True
     assert out["clusteringFields"] == ["id"]
+    assert out["labels"] == {"env": "prod"}
     assert out["schema"][0]["name"] == "id"
 
     assert out["viewQuery"] is None
