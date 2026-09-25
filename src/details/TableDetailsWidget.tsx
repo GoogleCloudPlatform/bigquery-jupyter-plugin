@@ -20,11 +20,17 @@ const queryClient = new QueryClient({
 export class TableDetailsWidget extends ReactWidget {
   private _tref: ITableRef;
   private _onQuery?: (sql: string) => void;
+  private _billingProject?: string | null;
 
-  constructor(tref: ITableRef, onQuery?: (sql: string) => void) {
+  constructor(
+    tref: ITableRef,
+    onQuery?: (sql: string) => void,
+    billingProject?: string | null
+  ) {
     super();
     this._tref = tref;
     this._onQuery = onQuery;
+    this._billingProject = billingProject;
     this.addClass('bq-details-widget');
   }
 
@@ -36,7 +42,11 @@ export class TableDetailsWidget extends ReactWidget {
   render(): JSX.Element {
     return (
       <QueryClientProvider client={queryClient}>
-        <TableDetails tref={this._tref} onQuery={this._onQuery} />
+        <TableDetails
+          tref={this._tref}
+          onQuery={this._onQuery}
+          billingProject={this._billingProject}
+        />
       </QueryClientProvider>
     );
   }

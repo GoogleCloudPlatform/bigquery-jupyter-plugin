@@ -145,7 +145,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
         existing.dispose();
         openTables.delete(widgetId);
       }
-      const details = new TableDetailsWidget(ref, openQueryEditor);
+      const details = new TableDetailsWidget(
+        ref,
+        openQueryEditor,
+        defaultProject
+      );
       details.id = widgetId;
       details.title.label = ref.tableId;
       details.title.caption = `${ref.projectId}.${ref.datasetId}.${ref.tableId}`;
