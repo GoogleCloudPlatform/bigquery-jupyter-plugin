@@ -144,7 +144,7 @@ test('inline query statistics render after a run', async ({ page }) => {
   const editor = page.locator('.bq-qe');
   await editor.getByRole('button', { name: 'Run', exact: true }).click();
 
-  const stats = editor.locator('.bq-qe-stats');
+  const stats = editor.locator('.bq-qe-results-meta');
   await expect(stats).toBeVisible();
   await expect(stats).toContainText('Processed 1.3 MB');
   await expect(stats).toContainText('billed 10.0 MB');

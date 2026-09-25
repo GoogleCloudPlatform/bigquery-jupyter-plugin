@@ -178,7 +178,7 @@ describe('QueryEditor', () => {
     renderEditor({ initialQuery: 'SELECT 1' });
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
     const statsEl = await screen.findByText(/Processed 10\.0 MB/);
-    expect(statsEl).toHaveClass('bq-qe-stats');
+    expect(statsEl).toHaveClass('bq-qe-results-meta');
     expect(statsEl).toHaveTextContent(/billed 10\.0 MB/);
     expect(statsEl).toHaveTextContent(/slot time 1\.5s/);
   });

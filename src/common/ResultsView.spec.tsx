@@ -40,7 +40,7 @@ function renderPager(
 describe('PagerBar', () => {
   it('shows the absolute row range for the current page', () => {
     renderPager({ page: 1, pageSize: 100, totalRows: 250, rowsOnPage: 100 });
-    expect(screen.getByText('Rows 101\u2013200 of 250')).toBeInTheDocument();
+    expect(screen.getByText('101\u2013200 of 250')).toBeInTheDocument();
   });
 
   it('shows "No rows" for an empty result', () => {

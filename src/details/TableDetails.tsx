@@ -7,7 +7,7 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getTable,
@@ -229,6 +229,7 @@ function PreviewTab({ tref }: { tref: ITableRef }): JSX.Element {
   }
   return (
     <div className="bq-dt-preview">
+      <ResultsGrid columns={columns} rows={rows} startIndex={page * pageSize} />
       <PagerBar
         page={page}
         pageSize={pageSize}
@@ -241,7 +242,6 @@ function PreviewTab({ tref }: { tref: ITableRef }): JSX.Element {
           setPage(0);
         }}
       />
-      <ResultsGrid columns={columns} rows={rows} startIndex={page * pageSize} />
     </div>
   );
 }
@@ -339,6 +339,32 @@ function StatisticsTab({
   billingProject?: string | null;
 }): JSX.Element {
   const [showTopValues, setShowTopValues] = useState(false);
+  // Fraction (0..1) of the split's height given to the stats table (top pane);
+  // the charts pane takes the rest. Draggable via the divider between them.
+  const [topFraction, setTopFraction] = useState(0.5);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const startDrag = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    const container = splitRef.current;
+    if (!container) {
+      return;
+    }
+    const onMove = (ev: MouseEvent): void => {
+      const rect = container.getBoundingClientRect();
+      const f = (ev.clientY - rect.top) / rect.height;
+      setTopFraction(Math.max(0.15, Math.min(0.85, f)));
+    };
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
   const q = useQuery({
     queryKey: [
       'tableStats',
@@ -371,8 +397,56 @@ function StatisticsTab({
   if (!data) {
     return <div className="bq-dt-empty">No statistics.</div>;
   }
+  const statsTable = (
+    <table className="bq-dt-table">
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Type</th>
+          <th>Nulls</th>
+          <th>Distinct</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>Avg</th>
+          <th>Stddev</th>
+          <th>Zeros</th>
+          <th>Negatives</th>
+          <th>Infinite</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.columns.map(c => (
+          <tr key={c.name}>
+            <td>{c.name}</td>
+            <td className="bq-dt-type">{c.type}</td>
+            <td>{countCell(c.nulls, c.nullFraction)}</td>
+            <td>{countCell(c.distinct, c.distinctFraction)}</td>
+            <td>{statCell(c.min)}</td>
+            <td>{statCell(c.max)}</td>
+            <td>{statCell(c.avg)}</td>
+            <td>{statCell(c.stddev)}</td>
+            <td>{countCell(c.zeros, c.zeroFraction)}</td>
+            <td>{countCell(c.negatives, c.negativeFraction)}</td>
+            <td>{countCell(c.infinite, c.infiniteFraction)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  const topCharts = (
+    <div className="bq-dt-topgrid">
+      {data.columns.map(c => (
+        <div className="bq-dt-topcard" key={c.name}>
+          <div className="bq-dt-topcard-title">{c.name}</div>
+          <TopValuesChart values={c.topValues} />
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div className="bq-dt-stats">
+      {/* The summary + "Show top values" toggle stay pinned; the profile
+          scrolls beneath them (a wide table can be many columns tall). */}
       <div className="bq-dt-stats-bar">
         <span className="bq-dt-stats-summary">
           {humanNumber(data.totalRows)} rows
@@ -399,51 +473,40 @@ function StatisticsTab({
       </div>
       {data.columns.length === 0 ? (
         <div className="bq-dt-empty">No scalar columns to profile.</div>
-      ) : (
-        <table className="bq-dt-table">
-          <thead>
-            <tr>
-              <th>Column</th>
-              <th>Type</th>
-              <th>Nulls</th>
-              <th>Distinct</th>
-              <th>Min</th>
-              <th>Max</th>
-              <th>Avg</th>
-              <th>Stddev</th>
-              <th>Zeros</th>
-              <th>Negatives</th>
-              <th>Infinite</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.columns.map(c => (
-              <tr key={c.name}>
-                <td>{c.name}</td>
-                <td className="bq-dt-type">{c.type}</td>
-                <td>{countCell(c.nulls, c.nullFraction)}</td>
-                <td>{countCell(c.distinct, c.distinctFraction)}</td>
-                <td>{statCell(c.min)}</td>
-                <td>{statCell(c.max)}</td>
-                <td>{statCell(c.avg)}</td>
-                <td>{statCell(c.stddev)}</td>
-                <td>{countCell(c.zeros, c.zeroFraction)}</td>
-                <td>{countCell(c.negatives, c.negativeFraction)}</td>
-                <td>{countCell(c.infinite, c.infiniteFraction)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {showTopValues && data.columns.length > 0 && (
-        <div className="bq-dt-topgrid">
-          {data.columns.map(c => (
-            <div className="bq-dt-topcard" key={c.name}>
-              <div className="bq-dt-topcard-title">{c.name}</div>
-              <TopValuesChart values={c.topValues} />
-            </div>
-          ))}
+      ) : showTopValues ? (
+        // Two independently-scrolling panes: the per-column table on top, the
+        // top-value bar charts below, so charts are reachable without scrolling
+        // past every column.
+        <div className="bq-dt-stats-split" ref={splitRef}>
+          <div
+            className="bq-dt-stats-pane"
+            style={{ flex: `0 0 ${topFraction * 100}%` }}
+          >
+            {statsTable}
+          </div>
+          <div
+            className="bq-dt-stats-divider"
+            role="separator"
+            aria-orientation="horizontal"
+            title="Drag to resize"
+            onMouseDown={startDrag}
+          />
+          <div
+            className="bq-dt-stats-pane bq-dt-stats-charts"
+            style={{ flex: '1 1 0' }}
+          >
+            {q.isPlaceholderData ? (
+              // The top-values query is still in flight; the data on screen is
+              // the pre-toggle result (no top values). Show a loader instead of
+              // rendering empty "No values." cards.
+              <div className="bq-dt-empty">Computing top values…</div>
+            ) : (
+              topCharts
+            )}
+          </div>
         </div>
+      ) : (
+        <div className="bq-dt-stats-pane">{statsTable}</div>
       )}
       {data.skipped.length > 0 && (
         <div className="bq-dt-stats-skipped">
@@ -492,9 +555,6 @@ export function TableDetails({
     <div className="bq-dt">
       <div className="bq-dt-header">
         <div className="bq-dt-heading">{tref.tableId}</div>
-        <div className="bq-dt-fqid">
-          {tref.projectId}.{tref.datasetId}
-        </div>
         <div className="bq-dt-actions">
           {onQuery && (
             <button

@@ -103,7 +103,7 @@ describe('QueryHistory', () => {
     const { openQuery } = renderHistory();
     await screen.findByText('SELECT 1');
     fireEvent.click(
-      screen.getAllByRole('button', { name: 'Open in query editor' })[0]
+      screen.getAllByRole('button', { name: 'Open query in editor' })[0]
     );
     expect(openQuery).toHaveBeenCalledWith('SELECT 1');
   });

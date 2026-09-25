@@ -38,6 +38,12 @@ _NUMERIC_TYPES = frozenset(
 # Only floating-point columns can hold +/-inf; IS_INF is meaningless elsewhere.
 _FLOAT_TYPES = frozenset({"FLOAT", "FLOAT64"})
 _NESTED_TYPES = frozenset({"RECORD", "STRUCT"})
+# Types BigQuery cannot COUNT(DISTINCT ...), GROUP BY, or APPROX_TOP_COUNT on, so
+# distinct + top-value aggregation is skipped for them (only the null count
+# applies). Without this, one such column makes the whole profiling query fail
+# with "Aggregate functions with DISTINCT cannot be used with arguments of type
+# GEOGRAPHY".
+_NON_DISTINCTABLE_TYPES = frozenset({"GEOGRAPHY", "JSON"})
 
 
 def _quote_ident(name):
@@ -54,13 +60,19 @@ def _is_float(field_type):
     return field_type.upper() in _FLOAT_TYPES
 
 
+def _is_distinctable(field_type):
+    return field_type.upper() not in _NON_DISTINCTABLE_TYPES
+
+
 def _build_query(fqn, profiled, top_values):
     """Build the single-row aggregation query for the profiled columns."""
     selects = ["COUNT(*) AS total_rows"]
     for i, f in enumerate(profiled):
         col = _quote_ident(f.name)
+        distinctable = _is_distinctable(f.field_type)
         selects.append(f"COUNTIF({col} IS NULL) AS c{i}_nulls")
-        selects.append(f"COUNT(DISTINCT {col}) AS c{i}_distinct")
+        if distinctable:
+            selects.append(f"COUNT(DISTINCT {col}) AS c{i}_distinct")
         if _is_numeric(f.field_type):
             selects.append(f"MIN({col}) AS c{i}_min")
             selects.append(f"MAX({col}) AS c{i}_max")
@@ -70,7 +82,9 @@ def _build_query(fqn, profiled, top_values):
             selects.append(f"COUNTIF({col} < 0) AS c{i}_negatives")
         if _is_float(f.field_type):
             selects.append(f"COUNTIF(IS_INF({col})) AS c{i}_infinite")
-        if top_values:
+        # APPROX_TOP_COUNT also groups by value, so it is only valid for
+        # distinctable types.
+        if top_values and distinctable:
             selects.append(
                 f"APPROX_TOP_COUNT({col}, {int(top_values)}) AS c{i}_top"
             )
@@ -142,8 +156,9 @@ def table_stats(
     for i, f in enumerate(profiled):
         numeric = _is_numeric(f.field_type)
         floaty = _is_float(f.field_type)
+        distinctable = _is_distinctable(f.field_type)
         nulls = row[f"c{i}_nulls"]
-        distinct = row[f"c{i}_distinct"]
+        distinct = row[f"c{i}_distinct"] if distinctable else None
         zeros = row[f"c{i}_zeros"] if numeric else None
         negatives = row[f"c{i}_negatives"] if numeric else None
         infinite = row[f"c{i}_infinite"] if floaty else None
@@ -154,7 +169,9 @@ def table_stats(
                 "nulls": nulls,
                 "nullFraction": _fraction(nulls, total),
                 "distinct": distinct,
-                "distinctFraction": _fraction(distinct, total),
+                "distinctFraction": (
+                    _fraction(distinct, total) if distinctable else None
+                ),
                 "min": _cell(row[f"c{i}_min"]) if numeric else None,
                 "max": _cell(row[f"c{i}_max"]) if numeric else None,
                 "avg": _cell(row[f"c{i}_avg"]) if numeric else None,
@@ -169,7 +186,11 @@ def table_stats(
                 "infiniteFraction": (
                     _fraction(infinite, total) if floaty else None
                 ),
-                "topValues": _top_list(row[f"c{i}_top"]) if top_values else [],
+                "topValues": (
+                    _top_list(row[f"c{i}_top"])
+                    if (top_values and distinctable)
+                    else []
+                ),
             }
         )
 

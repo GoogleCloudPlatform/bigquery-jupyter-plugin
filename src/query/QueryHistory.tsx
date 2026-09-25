@@ -10,11 +10,23 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { IQueryHistoryJob, listQueryHistory } from '../explorer/api';
 import { oneLine } from '../common/format';
+import { highlightSqlLines } from '../common/sqlHighlight';
 
 const PAGE_SIZE = 50;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+// Detects the machine-generated per-column profiling query that "Generate
+// Statistics" runs. Its aliases (`total_rows`, `c0_nulls`, `c0_distinct`, …) are
+// unique enough that this won't match a hand-written query. Used to filter these
+// out of history by default so they don't drown out the user's own queries.
+function isStatsQuery(sql: string | null): boolean {
+  if (!sql) {
+    return false;
+  }
+  return /\bAS total_rows\b/.test(sql) && /\bAS c\d+_nulls\b/.test(sql);
 }
 
 function humanBytes(n?: number | null): string {
@@ -80,6 +92,17 @@ function timeLabel(iso: string | null): string {
     : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// Full date + time for the detail table (e.g. "Nov 13, 2020, 1:20 PM").
+function fmtDateTime(iso: string | null): string {
+  if (!iso) {
+    return '\u2014';
+  }
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? '\u2014'
+    : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 export function QueryHistory({
   projects,
   defaultProject,
@@ -99,6 +122,9 @@ export function QueryHistory({
   const [error, setError] = useState('');
   const [nextToken, setNextToken] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Generate-Statistics profiling queries are hidden by default (they are
+  // machine-generated and clutter the list); this toggle brings them back.
+  const [showStatsQueries, setShowStatsQueries] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -147,9 +173,14 @@ export function QueryHistory({
     }
   };
 
+  const visibleJobs = showStatsQueries
+    ? jobs
+    : jobs.filter(j => !isStatsQuery(j.query));
+  const hiddenStatsCount = jobs.length - visibleJobs.length;
+
   // Group by day, preserving the newest-first order the backend returns.
   const groups: [string, IQueryHistoryJob[]][] = [];
-  for (const job of jobs) {
+  for (const job of visibleJobs) {
     const label = dayLabel(job.created);
     const last = groups[groups.length - 1];
     if (last && last[0] === label) {
@@ -164,6 +195,17 @@ export function QueryHistory({
       <div className="bq-qh-toolbar">
         <span className="bq-qh-title">Query history</span>
         <span className="bq-qh-toolbar-actions">
+          <label
+            className="bq-qh-filter"
+            title="Show the per-column profiling queries run by Generate Statistics"
+          >
+            <input
+              type="checkbox"
+              checked={showStatsQueries}
+              onChange={e => setShowStatsQueries(e.target.checked)}
+            />
+            Show stats queries
+          </label>
           {projects.length > 0 && (
             <select
               className="bq-qh-project"
@@ -222,50 +264,127 @@ export function QueryHistory({
                     <span className="bq-qh-sql" title={job.query ?? ''}>
                       {oneLine(job.query)}
                     </span>
-                    <button
-                      className="bq-qh-open"
-                      title="Open in editor"
-                      aria-label="Open in query editor"
-                      onClick={event => {
-                        event.stopPropagation();
-                        openQuery(job.query ?? '');
-                      }}
-                    >
-                      Open
-                    </button>
+                    {expanded !== job.jobId && (
+                      <button
+                        className="bq-qh-open"
+                        title="Open query in editor"
+                        aria-label="Open query in editor"
+                        onClick={event => {
+                          event.stopPropagation();
+                          openQuery(job.query ?? '');
+                        }}
+                      >
+                        Open query in editor
+                      </button>
+                    )}
                   </div>
                   {expanded === job.jobId && (
                     <div className="bq-qh-detail">
+                      <div
+                        className={`bq-qh-banner ${
+                          job.errored ? 'bq-qh-banner-err' : 'bq-qh-banner-ok'
+                        }`}
+                      >
+                        {job.errored ? 'Query failed' : 'Query succeeded'}
+                      </div>
+                      <div className="bq-qh-summary">
+                        <div className="bq-qh-summary-text">
+                          <span className="bq-qh-summary-main">
+                            {job.errored
+                              ? 'Query failed'
+                              : `Query completed in ${duration(
+                                  job.started,
+                                  job.ended
+                                )}`}
+                          </span>
+                          {job.created && (
+                            <span className="bq-qh-summary-time">
+                              {timeLabel(job.created)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          className="bq-qh-open"
+                          title="Open query in editor"
+                          aria-label="Open query in editor"
+                          onClick={event => {
+                            event.stopPropagation();
+                            openQuery(job.query ?? '');
+                          }}
+                        >
+                          Open query in editor
+                        </button>
+                      </div>
                       {job.errored && job.errorMessage && (
                         <div className="bq-qh-detail-error">
                           {job.errorMessage}
                         </div>
                       )}
-                      <pre className="bq-qh-detail-sql">{job.query ?? ''}</pre>
-                      <dl className="bq-qh-meta">
-                        <dt>State</dt>
-                        <dd>{job.state}</dd>
-                        <dt>Statement</dt>
-                        <dd>{job.statementType ?? '—'}</dd>
-                        <dt>Bytes processed</dt>
-                        <dd>{humanBytes(job.totalBytesProcessed)}</dd>
-                        <dt>Bytes billed</dt>
-                        <dd>{humanBytes(job.totalBytesBilled)}</dd>
-                        <dt>Cache hit</dt>
-                        <dd>{job.cacheHit ? 'yes' : 'no'}</dd>
-                        <dt>Duration</dt>
-                        <dd>{duration(job.started, job.ended)}</dd>
-                        <dt>Job ID</dt>
-                        <dd className="bq-qh-jobid">{job.jobId}</dd>
-                        <dt>Location</dt>
-                        <dd>{job.location ?? '—'}</dd>
-                      </dl>
+                      <ol className="bq-qh-code">
+                        {highlightSqlLines(job.query ?? '').map((nodes, i) => (
+                          <li key={i}>{nodes.length ? nodes : '\u00a0'}</li>
+                        ))}
+                      </ol>
+                      <table className="bq-qh-meta-table">
+                        <tbody>
+                          <tr>
+                            <td className="bq-qh-meta-key">Job ID</td>
+                            <td className="bq-qh-jobid">{job.jobId}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">User</td>
+                            <td>{job.userEmail ?? '\u2014'}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Location</td>
+                            <td>{job.location ?? '\u2014'}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Statement</td>
+                            <td>{job.statementType ?? '\u2014'}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Creation time</td>
+                            <td>{fmtDateTime(job.created)}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Start time</td>
+                            <td>{fmtDateTime(job.started)}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">End time</td>
+                            <td>{fmtDateTime(job.ended)}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Duration</td>
+                            <td>{duration(job.started, job.ended)}</td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Bytes processed</td>
+                            <td>
+                              {humanBytes(job.totalBytesProcessed)}
+                              {job.cacheHit ? ' (results cached)' : ''}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="bq-qh-meta-key">Bytes billed</td>
+                            <td>{humanBytes(job.totalBytesBilled)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
               ))}
             </div>
           ))}
+          {visibleJobs.length === 0 && hiddenStatsCount > 0 && (
+            <div className="bq-qh-empty">
+              {hiddenStatsCount} statistics{' '}
+              {hiddenStatsCount === 1 ? 'query' : 'queries'} hidden. Enable
+              “Show stats queries” to see them.
+            </div>
+          )}
           {nextToken && (
             <button className="bq-dt-more" onClick={() => void loadMore()}>
               Load more

@@ -39,6 +39,7 @@ import {
   TableActionsProvider,
   useTableActions
 } from './TableActions';
+import { dataframeCode } from '../common/dataframe';
 import {
   addIcon,
   columnIcon,
@@ -83,6 +84,14 @@ function boilerplateQuery(fqId: string): string {
 function copyBoilerplateQuery(fqId: string): void {
   Clipboard.copyToSystem(boilerplateQuery(fqId));
   Notification.success('Copied boilerplate query', { autoClose: 2000 });
+}
+
+// Copy a pandas-DataFrame snippet for a table's boilerplate query. Uses an empty
+// billing project so the emitted `bigquery.Client()` bills to the notebook's
+// default project -- required for public datasets you cannot bill to.
+function copyDataFrameCode(fqId: string): void {
+  Clipboard.copyToSystem(dataframeCode(boilerplateQuery(fqId), ''));
+  Notification.success('Copied DataFrame code', { autoClose: 2000 });
 }
 
 // Build the exact gcloud command that grants the dataset-viewer role, using the
@@ -239,6 +248,10 @@ function TableNode({
             {
               label: 'Copy boilerplate query',
               onClick: () => copyBoilerplateQuery(fqId)
+            },
+            {
+              label: 'Copy DataFrame code',
+              onClick: () => copyDataFrameCode(fqId)
             },
             { label: 'Copy table ID', onClick: () => copyId(fqId) }
           ])
@@ -1123,6 +1136,15 @@ function ExplorerTreeInner({
         >
           Query history
         </button>
+        <a
+          className="bq-feedback-link"
+          href="https://github.com/GoogleCloudPlatform/bigquery-jupyter-plugin/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Report a bug or request a feature on GitHub"
+        >
+          Have feedback? Raise an issue
+        </a>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
-import { sql as sqlLanguage, SQLDialect } from '@codemirror/lang-sql';
+import { sql as sqlLanguage } from '@codemirror/lang-sql';
 import { Prec } from '@codemirror/state';
 import {
   EditorView,
@@ -33,22 +33,12 @@ import {
   PreviewCell
 } from '../explorer/api';
 import { PagerBar, ResultsGrid } from '../common/ResultsView';
+import { dataframeCode } from '../common/dataframe';
+import { BIGQUERY_SQL } from '../common/sqlDialect';
 
 const PAGE_SIZE = 100;
 const POLL_MS = 800;
 const MAX_POLLS = 225; // ~3 min at POLL_MS
-
-// BigQuery SQL dialect: StandardSQL keywords/types, but with backtick-quoted
-// identifiers so a fully-qualified `project.dataset.table` is one identifier
-// token (StandardSQL would otherwise lex the words inside the backticks and
-// mis-highlight ones like `public` as keywords). Also enables BigQuery's
-// `#` line comments, double-quoted strings, and backslash escapes.
-const BIGQUERY_SQL = SQLDialect.define({
-  identifierQuotes: '`',
-  doubleQuotedStrings: true,
-  hashComments: true,
-  backslashEscapes: true
-});
 
 interface IJobRef {
   jobId: string;
@@ -102,30 +92,6 @@ function formatStats(stats: IQueryStats): string {
     parts.push(`slot time ${(stats.slotMillis / 1000).toFixed(1)}s`);
   }
   return parts.join(' · ');
-}
-
-// Escape a string for embedding inside a Python single-quoted literal.
-function pyStr(s: string): string {
-  return `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-}
-
-// Generate a self-contained Python snippet that runs the SQL and returns the
-// results as a pandas DataFrame, using the same google-cloud-bigquery client the
-// plugin's backend uses. The SQL goes in a triple-double-quoted string (its
-// backslashes and any embedded `"""` are escaped so the snippet stays valid).
-function dataframeCode(sql: string, project: string): string {
-  const escapedSql = sql.replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"');
-  const clientArgs = project ? `project=${pyStr(project)}` : '';
-  return [
-    '# Run the query and load the results into a pandas DataFrame.',
-    'from google.cloud import bigquery',
-    '',
-    `client = bigquery.Client(${clientArgs})`,
-    'df = client.query(',
-    `    """${escapedSql}"""`,
-    ').to_dataframe()',
-    'df'
-  ].join('\n');
 }
 
 export function QueryEditor({
@@ -458,14 +424,8 @@ export function QueryEditor({
         >
           Format
         </button>
-        <button
-          className="bq-qe-dataframe"
-          onClick={copyDataFrameCode}
-          disabled={!sql.trim()}
-          title="Copy Python code to load these results as a pandas DataFrame"
-        >
-          Copy DataFrame code
-        </button>
+        {estimate && <span className="bq-qe-estimate">{estimate}</span>}
+        {running && status && <span className="bq-qe-status">{status}</span>}
         {projects.length > 0 && (
           <label className="bq-qe-project-label">
             Project:
@@ -483,8 +443,6 @@ export function QueryEditor({
             </select>
           </label>
         )}
-        {estimate && <span className="bq-qe-estimate">{estimate}</span>}
-        {status && <span className="bq-qe-status">{status}</span>}
       </div>
       {useCodeMirror ? (
         <div className="bq-qe-sql bq-qe-cm" ref={hostRef} />
@@ -505,9 +463,35 @@ export function QueryEditor({
       ) : estimateError ? (
         <div className="bq-qe-estimate-error">{estimateError}</div>
       ) : null}
-      {stats && <div className="bq-qe-stats">{formatStats(stats)}</div>}
+      {/* Always show the DataFrame-copy action (even before a run); the "Query
+          results" title and run stats fill in on the left once a query is done. */}
+      <div className="bq-qe-results-header">
+        {columns.length > 0 && (
+          <span className="bq-qe-results-title">Query results</span>
+        )}
+        {(status || stats) && (
+          <span className="bq-qe-results-meta">
+            {[status, stats ? formatStats(stats) : '']
+              .filter(Boolean)
+              .join(' \u00b7 ')}
+          </span>
+        )}
+        <button
+          className="bq-qe-dataframe"
+          onClick={copyDataFrameCode}
+          disabled={!sql.trim()}
+          title="Copy Python code to load these results as a pandas DataFrame"
+        >
+          Copy DataFrame code
+        </button>
+      </div>
       {columns.length > 0 && (
         <div className="bq-qe-results">
+          <ResultsGrid
+            columns={columns}
+            rows={rows}
+            startIndex={page * pageSize}
+          />
           <PagerBar
             page={page}
             pageSize={pageSize}
@@ -516,11 +500,6 @@ export function QueryEditor({
             busy={paging || running}
             onPage={p => void fetchPage(p, pageSize)}
             onPageSize={s => void fetchPage(0, s)}
-          />
-          <ResultsGrid
-            columns={columns}
-            rows={rows}
-            startIndex={page * pageSize}
           />
         </div>
       )}
