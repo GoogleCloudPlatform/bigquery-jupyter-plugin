@@ -66,6 +66,23 @@ def _first_page(row_iter):
     return rows, row_iter.schema, row_iter.total_rows, row_iter.next_page_token
 
 
+def _job_stats(job):
+    """Post-run statistics for a finished query job.
+
+    Mirrors the fields the Query history panel shows (bytes processed/billed,
+    cache hit, statement type) plus slot time, so the query editor can surface
+    them inline after a run. Uses ``getattr`` defensively since a non-SELECT or
+    script job may not populate every attribute.
+    """
+    return {
+        "totalBytesProcessed": getattr(job, "total_bytes_processed", None),
+        "totalBytesBilled": getattr(job, "total_bytes_billed", None),
+        "cacheHit": getattr(job, "cache_hit", None),
+        "statementType": getattr(job, "statement_type", None),
+        "slotMillis": getattr(job, "slot_millis", None),
+    }
+
+
 def get_query_results(
     job_id,
     project_id=None,
@@ -112,4 +129,5 @@ def get_query_results(
         "rows": rows,
         "totalRows": total_rows,
         "startIndex": start_index,
+        "stats": _job_stats(job),
     }

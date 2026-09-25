@@ -20,6 +20,7 @@ import {
   IEditorServices
 } from '@jupyterlab/codeeditor';
 import { Widget } from '@lumino/widgets';
+import { Clipboard, Notification } from '@jupyterlab/apputils';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   cancelQuery,
@@ -27,6 +28,7 @@ import {
   executeQuery,
   getQueryResults,
   IQueryResults,
+  IQueryStats,
   ISchemaField,
   PreviewCell
 } from '../explorer/api';
@@ -79,6 +81,53 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// One-line post-run summary from the job stats: bytes processed / billed, cache
+// hit, and slot time. Mirrors what the Query history panel shows per job, but
+// inline in the editor right after a run.
+function formatStats(stats: IQueryStats): string {
+  const parts: string[] = [];
+  if (stats.cacheHit) {
+    // A cache hit is free: no bytes are billed, so lead with that.
+    parts.push('Results served from cache (no bytes billed)');
+  } else {
+    parts.push(`Processed ${humanBytes(stats.totalBytesProcessed)}`);
+    if (
+      stats.totalBytesBilled !== null &&
+      stats.totalBytesBilled !== undefined
+    ) {
+      parts.push(`billed ${humanBytes(stats.totalBytesBilled)}`);
+    }
+  }
+  if (stats.slotMillis !== null && stats.slotMillis !== undefined) {
+    parts.push(`slot time ${(stats.slotMillis / 1000).toFixed(1)}s`);
+  }
+  return parts.join(' · ');
+}
+
+// Escape a string for embedding inside a Python single-quoted literal.
+function pyStr(s: string): string {
+  return `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+// Generate a self-contained Python snippet that runs the SQL and returns the
+// results as a pandas DataFrame, using the same google-cloud-bigquery client the
+// plugin's backend uses. The SQL goes in a triple-double-quoted string (its
+// backslashes and any embedded `"""` are escaped so the snippet stays valid).
+function dataframeCode(sql: string, project: string): string {
+  const escapedSql = sql.replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"');
+  const clientArgs = project ? `project=${pyStr(project)}` : '';
+  return [
+    '# Run the query and load the results into a pandas DataFrame.',
+    'from google.cloud import bigquery',
+    '',
+    `client = bigquery.Client(${clientArgs})`,
+    'df = client.query(',
+    `    """${escapedSql}"""`,
+    ').to_dataframe()',
+    'df'
+  ].join('\n');
+}
+
 export function QueryEditor({
   initialQuery,
   projects,
@@ -99,6 +148,7 @@ export function QueryEditor({
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState('');
   const [runError, setRunError] = useState('');
+  const [stats, setStats] = useState<IQueryStats | null>(null);
   const [columns, setColumns] = useState<ISchemaField[]>([]);
   const [rows, setRows] = useState<PreviewCell[][]>([]);
   const [totalRows, setTotalRows] = useState<number | null>(null);
@@ -165,6 +215,7 @@ export function QueryEditor({
     setRows([]);
     setColumns([]);
     setTotalRows(null);
+    setStats(null);
     setPage(0);
     cancelRef.current = false;
     setRunning(true);
@@ -208,6 +259,7 @@ export function QueryEditor({
       setColumns(res.schema);
       setRows(res.rows);
       setTotalRows(res.totalRows);
+      setStats(res.stats ?? null);
       setPage(0);
       setStatus(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
     } catch (e) {
@@ -298,6 +350,18 @@ export function QueryEditor({
       setSql(formatted);
       onSqlChange?.(formatted);
     }
+  };
+
+  // Generate a pandas-DataFrame snippet for the current query (selection or whole
+  // doc) and copy it to the clipboard, so a data scientist can paste it into a
+  // notebook cell and get the results as a DataFrame.
+  const copyDataFrameCode = (): void => {
+    const query = getQueryToRun();
+    if (!query.trim()) {
+      return;
+    }
+    Clipboard.copyToSystem(dataframeCode(query, project));
+    Notification.success('Copied DataFrame code', { autoClose: 2000 });
   };
 
   // Keep the keymap handlers pointing at the latest closures without recreating
@@ -394,6 +458,14 @@ export function QueryEditor({
         >
           Format
         </button>
+        <button
+          className="bq-qe-dataframe"
+          onClick={copyDataFrameCode}
+          disabled={!sql.trim()}
+          title="Copy Python code to load these results as a pandas DataFrame"
+        >
+          Copy DataFrame code
+        </button>
         {projects.length > 0 && (
           <label className="bq-qe-project-label">
             Project:
@@ -433,6 +505,7 @@ export function QueryEditor({
       ) : estimateError ? (
         <div className="bq-qe-estimate-error">{estimateError}</div>
       ) : null}
+      {stats && <div className="bq-qe-stats">{formatStats(stats)}</div>}
       {columns.length > 0 && (
         <div className="bq-qe-results">
           <PagerBar

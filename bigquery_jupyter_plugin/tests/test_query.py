@@ -133,6 +133,44 @@ def test_get_query_results_done_typed_rows():
     client.list_rows.assert_not_called()
 
 
+def test_get_query_results_includes_job_stats():
+    """A finished job returns post-run stats (bytes, cache hit, slot time)."""
+    schema = [bigquery.SchemaField("n", "INTEGER")]
+    rows = [_FakeRow((1,))]
+    row_iter = _FakeRowIterator(rows, schema, total_rows=1, next_page_token=None)
+    job = mock.MagicMock()
+    job.state = "DONE"
+    job.total_bytes_processed = 10 * 1024 * 1024
+    job.total_bytes_billed = 10 * 1024 * 1024
+    job.cache_hit = False
+    job.statement_type = "SELECT"
+    job.slot_millis = 1500
+    job.result.return_value = row_iter
+    client = mock.MagicMock()
+    client.get_job.return_value = job
+    with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
+        out = query.get_query_results("job123", "proj", "US", 0, 100)
+
+    assert out["stats"] == {
+        "totalBytesProcessed": 10 * 1024 * 1024,
+        "totalBytesBilled": 10 * 1024 * 1024,
+        "cacheHit": False,
+        "statementType": "SELECT",
+        "slotMillis": 1500,
+    }
+
+
+def test_get_query_results_running_has_no_stats():
+    """A still-running job reports state only, with no stats block."""
+    job = _FakeJob(state="RUNNING")
+    client = mock.MagicMock()
+    client.get_job.return_value = job
+    with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
+        out = query.get_query_results("job123", "proj", "US")
+
+    assert "stats" not in out
+
+
 def test_get_query_results_random_access_page():
     """A non-zero start_index jumps to any page via tabledata.list, not result()."""
     schema = [bigquery.SchemaField("n", "INTEGER")]

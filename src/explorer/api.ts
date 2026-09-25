@@ -158,12 +158,21 @@ export interface IQueryJob {
   state: string;
 }
 
+export interface IQueryStats {
+  totalBytesProcessed?: number | null;
+  totalBytesBilled?: number | null;
+  cacheHit?: boolean | null;
+  statementType?: string | null;
+  slotMillis?: number | null;
+}
+
 export interface IQueryResults {
   state: string;
   schema: ISchemaField[];
   rows: PreviewCell[][];
   totalRows: number | null;
   startIndex?: number;
+  stats?: IQueryStats | null;
 }
 
 export function dryRun(query: string, projectId?: string): Promise<IDryRun> {

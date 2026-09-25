@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Clipboard, Notification } from '@jupyterlab/apputils';
 import { QueryEditor } from './QueryEditor';
 import * as api from '../explorer/api';
 
@@ -58,7 +59,14 @@ beforeEach(() => {
       ['world', 7]
     ],
     totalRows: 250,
-    startIndex: 0
+    startIndex: 0,
+    stats: {
+      totalBytesProcessed: 10 * 1024 * 1024,
+      totalBytesBilled: 10 * 1024 * 1024,
+      cacheHit: false,
+      statementType: 'SELECT',
+      slotMillis: 1500
+    }
   });
   mockedApi.cancelQuery.mockResolvedValue({ jobId: 'job-1', state: 'DONE' });
 });
@@ -162,5 +170,56 @@ describe('QueryEditor', () => {
     await waitFor(() =>
       expect(screen.getByRole('textbox')).toHaveValue('SELECT 1 from t')
     );
+  });
+
+  // JL3->JL4 gap: after a run, the editor shows inline query statistics
+  // (bytes processed/billed, slot time) that previously lived only in history.
+  it('shows post-run query statistics inline', async () => {
+    renderEditor({ initialQuery: 'SELECT 1' });
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    const statsEl = await screen.findByText(/Processed 10\.0 MB/);
+    expect(statsEl).toHaveClass('bq-qe-stats');
+    expect(statsEl).toHaveTextContent(/billed 10\.0 MB/);
+    expect(statsEl).toHaveTextContent(/slot time 1\.5s/);
+  });
+
+  // JL3->JL4 gap: a cache hit is reported as free (no bytes billed).
+  it('reports a cache hit in the inline stats', async () => {
+    mockedApi.getQueryResults.mockResolvedValue({
+      state: 'DONE',
+      schema: [{ name: 'word', type: 'STRING', fields: [] }],
+      rows: [['hello']],
+      totalRows: 1,
+      startIndex: 0,
+      stats: {
+        totalBytesProcessed: 0,
+        totalBytesBilled: 0,
+        cacheHit: true,
+        statementType: 'SELECT',
+        slotMillis: 0
+      }
+    });
+    renderEditor({ initialQuery: 'SELECT 1' });
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    expect(await screen.findByText(/served from cache/)).toBeInTheDocument();
+  });
+
+  // JL3->JL4 gap: "Copy DataFrame code" copies a self-contained pandas snippet
+  // for the current query, using the selected billing project.
+  it('copies DataFrame code for the current query', () => {
+    const copySpy = jest
+      .spyOn(Clipboard, 'copyToSystem')
+      .mockImplementation(() => undefined);
+    jest.spyOn(Notification, 'success').mockImplementation(() => 'id');
+    renderEditor({ initialQuery: 'SELECT 1' });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Copy DataFrame code' })
+    );
+    expect(copySpy).toHaveBeenCalledTimes(1);
+    const code = copySpy.mock.calls[0][0] as string;
+    expect(code).toContain('from google.cloud import bigquery');
+    expect(code).toContain("bigquery.Client(project='proj-a')");
+    expect(code).toContain('"""SELECT 1"""');
+    expect(code).toContain('.to_dataframe()');
   });
 });
