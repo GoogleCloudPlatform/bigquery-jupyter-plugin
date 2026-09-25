@@ -66,10 +66,27 @@
 .bq-footer {
   position: sticky;
   bottom: 0;
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
   margin-top: auto;
   padding: 6px 2px 2px;
   border-top: 1px solid var(--jp-border-color2);
   background: var(--jp-layout-color1);
+}
+
+/* Secondary, muted "raise an issue" link under Query history. */
+.bq-feedback-link {
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+  text-decoration: none;
+}
+
+.bq-feedback-link:hover {
+  color: var(--jp-content-link-color, #1a73e8);
+  text-decoration: underline;
 }
 
 .bq-add {
@@ -619,12 +636,83 @@
 }
 
 .bq-dt-meta tr:nth-child(odd) td {
-  background: var(--jp-layout-color2);
+  background: rgb(128 128 128 / 6%);
 }
 
 /* Shaded header row for the schema/data tables (console-style). */
 .bq-dt-table thead th {
-  background: var(--jp-layout-color2);
+  background: rgb(128 128 128 / 6%);
+}
+
+/* Statistics tab: a fixed toolbar with one or two scrolling panes below. */
+.bq-dt-stats {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Scrolling region for the profile table (and, in split mode, the charts). */
+.bq-dt-stats-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Top-values on: stack the table and charts as two equal, independently
+   scrolling halves so charts are reachable without scrolling past every row. */
+.bq-dt-stats-split {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bq-dt-stats-charts {
+  padding-top: 8px;
+}
+
+/* Draggable divider between the stats table and the charts panes. */
+.bq-dt-stats-divider {
+  flex: 0 0 auto;
+  position: relative;
+  height: 11px;
+  cursor: row-resize;
+}
+
+.bq-dt-stats-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 1px;
+  background: var(--jp-border-color2);
+}
+
+.bq-dt-stats-divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 28px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: var(--jp-border-color2);
+}
+
+.bq-dt-stats-divider:hover::after,
+.bq-dt-stats-divider:active::after {
+  background: var(--jp-brand-color1);
+}
+
+/* Keep the profile's column headers visible while its rows scroll. */
+.bq-dt-stats-pane .bq-dt-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--jp-layout-color1);
 }
 
 /* Statistics tab: summary line above the profile and the skipped-columns note. */
@@ -634,12 +722,14 @@
 }
 
 .bq-dt-stats-skipped {
+  flex: 0 0 auto;
   margin-top: 8px;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size0);
 }
 
 .bq-dt-stats-bar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -667,7 +757,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
-  margin-top: 14px;
 }
 
 .bq-dt-topcard {
@@ -865,8 +954,7 @@
   font-size: var(--jp-ui-font-size1);
 }
 
-.bq-qe-format,
-.bq-qe-dataframe {
+.bq-qe-format {
   padding: 4px 12px;
   cursor: pointer;
   color: var(--jp-ui-font-color1);
@@ -874,6 +962,21 @@
   border: 1px solid var(--jp-border-color1);
   border-radius: 3px;
   font-size: var(--jp-ui-font-size1);
+}
+
+/* Copy DataFrame code: a link-style action on the right of the results header. */
+.bq-qe-dataframe {
+  margin-left: auto;
+  padding: 0;
+  cursor: pointer;
+  color: var(--jp-content-link-color, var(--jp-brand-color1));
+  background: none;
+  border: none;
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-qe-dataframe:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .bq-qe-format:disabled,
@@ -886,6 +989,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  margin-left: auto;
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
@@ -906,7 +1010,26 @@
 }
 
 .bq-qe-status {
-  margin-left: auto;
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size1);
+}
+
+/* "Query results" header: title + run stats on the left, Copy DataFrame right. */
+.bq-qe-results-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 2px 8px;
+  flex: 0 0 auto;
+}
+
+.bq-qe-results-title {
+  font-size: var(--jp-ui-font-size2);
+  font-weight: 500;
+  color: var(--jp-ui-font-color1);
+}
+
+.bq-qe-results-meta {
   color: var(--jp-ui-font-color2);
   font-size: var(--jp-ui-font-size1);
 }
@@ -962,18 +1085,20 @@
   flex-direction: column;
 }
 
-.bq-qe-results .bq-dt-preview-scroll {
+.bq-qe-results .bq-dt-preview-scroll,
+.bq-dt-preview .bq-dt-preview-scroll {
   flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Rich results-grid pagination bar (first/prev/next/last + page size). */
 .bq-dt-pager {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 20px;
   flex-wrap: wrap;
-  padding: 4px 0 6px;
+  padding: 8px 4px 6px;
   color: var(--jp-ui-font-color2);
 }
 
@@ -990,8 +1115,7 @@
 .bq-dt-pager-size-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-right: 8px;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -1004,24 +1128,29 @@
 }
 
 .bq-dt-pager-btn {
-  min-width: 24px;
-  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
   cursor: pointer;
-  background: var(--jp-layout-color2);
-  color: var(--jp-ui-font-color1);
-  border: 1px solid var(--jp-border-color1);
-  border-radius: 3px;
-  font-size: var(--jp-ui-font-size1);
-  line-height: 1.2;
+  background: transparent;
+  color: var(--jp-ui-font-color2);
+  border: none;
+  border-radius: 50%;
+  font-size: var(--jp-ui-font-size2);
+  line-height: 1;
 }
 
 .bq-dt-pager-btn:disabled {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .bq-dt-pager-btn:not(:disabled):hover {
-  background: var(--jp-layout-color3);
+  background: rgb(128 128 128 / 12%);
+  color: var(--jp-ui-font-color1);
 }
 
 /* ---- query history (main area) ---- */
@@ -1054,8 +1183,18 @@
 .bq-qh-toolbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   margin-left: auto;
+}
+
+.bq-qh-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size1);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .bq-qh-project {
@@ -1177,36 +1316,133 @@
   word-break: break-word;
 }
 
-.bq-qh-detail-sql {
-  margin: 0 0 8px;
-  padding: 8px;
-  max-height: 200px;
-  overflow: auto;
+/* Full-width success/failure banner atop the expanded job detail. */
+.bq-qh-banner {
+  margin: -8px -12px 12px;
+  padding: 8px 12px;
+  color: #fff;
+  font-weight: 500;
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-qh-banner-ok {
+  background: var(--jp-success-color1, #34a853);
+}
+
+.bq-qh-banner-err {
+  background: var(--jp-error-color1, #d32f2f);
+}
+
+.bq-qh-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bq-qh-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bq-qh-summary-main {
   color: var(--jp-ui-font-color1);
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-qh-summary-time {
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+}
+
+/* SQL syntax highlighting in the read-only history code block. Tokens come from
+   CodeMirror's grammar via classHighlighter (tok-* classes); colors mirror
+   JupyterLab's CodeMirror highlight style (same --jp-mirror-editor-* vars) so
+   history matches the live editor. */
+.bq-qh-code .tok-keyword {
+  color: var(--jp-mirror-editor-keyword-color, #a626a4);
+  font-weight: bold;
+}
+
+.bq-qh-code .tok-string,
+.bq-qh-code .tok-string2 {
+  color: var(--jp-mirror-editor-string-color, #50a14f);
+}
+
+.bq-qh-code .tok-number {
+  color: var(--jp-mirror-editor-number-color, #986801);
+}
+
+.bq-qh-code .tok-bool,
+.bq-qh-code .tok-atom {
+  color: var(--jp-mirror-editor-atom-color, #986801);
+}
+
+.bq-qh-code .tok-comment {
+  color: var(--jp-mirror-editor-comment-color, #a0a1a7);
+  font-style: italic;
+}
+
+.bq-qh-code .tok-operator {
+  color: var(--jp-mirror-editor-operator-color, var(--jp-ui-font-color1));
+}
+
+.bq-qh-code .tok-typeName {
+  color: var(--jp-mirror-editor-keyword-color, #a626a4);
+}
+
+.bq-qh-code .tok-meta {
+  color: var(--jp-mirror-editor-meta-color, var(--jp-ui-font-color2));
+}
+
+/* Line-numbered SQL code block in the expanded job detail. */
+.bq-qh-code {
+  margin: 0 0 12px;
+  padding: 8px 8px 8px 44px;
+  max-height: 220px;
+  overflow: auto;
   background: var(--jp-layout-color1);
   border: 1px solid var(--jp-border-color2);
   border-radius: 4px;
   font-family: var(--jp-code-font-family);
   font-size: var(--jp-code-font-size);
-  white-space: pre-wrap;
-  word-break: break-word;
+  list-style: decimal;
 }
 
-.bq-qh-meta {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 2px 12px;
-  margin: 0;
+.bq-qh-code li {
+  padding-left: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--jp-ui-font-color1);
+}
+
+.bq-qh-code li::marker {
+  color: var(--jp-ui-font-color3);
+}
+
+/* Zebra-striped job metadata table (console-style). */
+.bq-qh-meta-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: var(--jp-ui-font-size1);
 }
 
-.bq-qh-meta dt {
-  color: var(--jp-ui-font-color2);
+.bq-qh-meta-table td {
+  padding: 6px 12px;
+  vertical-align: top;
+  color: var(--jp-ui-font-color1);
 }
 
-.bq-qh-meta dd {
-  margin: 0;
-  color: var(--jp-ui-font-color1);
+.bq-qh-meta-table tr:nth-child(odd) td {
+  background: rgb(128 128 128 / 6%);
+}
+
+.bq-qh-meta-key {
+  width: 200px;
+  white-space: nowrap;
+  color: var(--jp-ui-font-color2);
 }
 
 .bq-qh-jobid {

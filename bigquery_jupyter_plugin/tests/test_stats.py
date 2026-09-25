@@ -141,6 +141,49 @@ def test_table_stats_top_values_toggle():
     ]
 
 
+def test_table_stats_geography_skips_distinct():
+    # GEOGRAPHY (and JSON) can't be used with COUNT(DISTINCT) or
+    # APPROX_TOP_COUNT; those must be skipped for such columns so one of them
+    # doesn't make the whole profiling query fail.
+    schema = [
+        bigquery.SchemaField("id", "INTEGER"),
+        bigquery.SchemaField("loc", "GEOGRAPHY"),
+    ]
+    row = {
+        "total_rows": 50,
+        "c0_nulls": 0,
+        "c0_distinct": 50,
+        "c0_min": 1,
+        "c0_max": 50,
+        "c0_avg": 25.0,
+        "c0_stddev": 14.0,
+        "c0_zeros": 0,
+        "c0_negatives": 0,
+        "c0_top": [{"value": 1, "count": 50}],
+        # loc (GEOGRAPHY): only a null count is computed.
+        "c1_nulls": 3,
+    }
+    client = _client_returning(_FakeTable(schema, num_rows=50), row)
+    with mock.patch.object(stats._bq_client, "get_bq_client", return_value=client):
+        out = stats.table_stats("p", "d", "t", top_values=5)
+
+    sql = client.query.call_args[0][0]
+    # No DISTINCT / APPROX_TOP_COUNT on the GEOGRAPHY column...
+    assert "COUNT(DISTINCT `loc`)" not in sql
+    assert "APPROX_TOP_COUNT(`loc`" not in sql
+    # ...but its null count is still there, and both still apply to `id`.
+    assert "COUNTIF(`loc` IS NULL) AS c1_nulls" in sql
+    assert "COUNT(DISTINCT `id`) AS c0_distinct" in sql
+    assert "APPROX_TOP_COUNT(`id`, 5) AS c0_top" in sql
+
+    by_name = {c["name"]: c for c in out["columns"]}
+    loc = by_name["loc"]
+    assert loc["nulls"] == 3
+    assert loc["distinct"] is None
+    assert loc["distinctFraction"] is None
+    assert loc["topValues"] == []
+
+
 def test_table_stats_runs_query_in_billing_project():
     # Profiling a table in a read-only project (e.g. bigquery-public-data) must
     # build the client with the caller's billing project, not the table's.

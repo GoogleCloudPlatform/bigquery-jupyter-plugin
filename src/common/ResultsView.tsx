@@ -89,29 +89,29 @@ export function PagerBar({
   const lastRow = page * pageSize + rowsOnPage;
   return (
     <div className="bq-dt-pager">
+      <label className="bq-dt-pager-size-label">
+        Rows per page:
+        <select
+          className="bq-dt-pager-size"
+          value={pageSize}
+          disabled={busy}
+          onChange={e => onPageSize(Number(e.target.value))}
+        >
+          {PAGE_SIZE_OPTIONS.map(n => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
       <span className="bq-dt-pager-info">
         {totalRows === 0
           ? 'No rows'
-          : `Rows ${firstRow.toLocaleString()}\u2013${lastRow.toLocaleString()}${
+          : `${firstRow.toLocaleString()}\u2013${lastRow.toLocaleString()}${
               totalRows !== null ? ` of ${totalRows.toLocaleString()}` : ''
             }`}
       </span>
       <span className="bq-dt-pager-controls">
-        <label className="bq-dt-pager-size-label">
-          Rows per page:
-          <select
-            className="bq-dt-pager-size"
-            value={pageSize}
-            disabled={busy}
-            onChange={e => onPageSize(Number(e.target.value))}
-          >
-            {PAGE_SIZE_OPTIONS.map(n => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
         <button
           className="bq-dt-pager-btn"
           title="First page"
@@ -119,7 +119,7 @@ export function PagerBar({
           disabled={busy || page === 0}
           onClick={() => onPage(0)}
         >
-          {'\u00ab'}
+          {'\u21E4'}
         </button>
         <button
           className="bq-dt-pager-btn"
@@ -146,7 +146,7 @@ export function PagerBar({
           disabled={busy || !hasNext || lastPage === null}
           onClick={() => lastPage !== null && onPage(lastPage)}
         >
-          {'\u00bb'}
+          {'\u21E5'}
         </button>
       </span>
     </div>
