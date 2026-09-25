@@ -60,11 +60,16 @@
   text-decoration: underline;
 }
 
-/* Pinned to the bottom of the explorer via margin-top:auto in the flex column. */
+/* Pinned to the bottom of the explorer: margin-top:auto keeps it at the bottom
+   when the tree is short, and position:sticky keeps it visible while a long
+   tree scrolls (so "Query history" is always reachable). */
 .bq-footer {
+  position: sticky;
+  bottom: 0;
   margin-top: auto;
   padding: 6px 2px 2px;
   border-top: 1px solid var(--jp-border-color2);
+  background: var(--jp-layout-color1);
 }
 
 .bq-add {
@@ -579,6 +584,144 @@
   color: var(--jp-ui-font-color1);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Description + Labels shown side by side, like the BigQuery console. */
+.bq-dt-desc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.bq-dt-desc-grid .bq-dt-section {
+  margin-bottom: 0;
+}
+
+.bq-dt-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bq-dt-label {
+  font-size: var(--jp-ui-font-size0);
+  color: var(--jp-ui-font-color1);
+  background: var(--jp-layout-color2);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+/* Zebra-striped, border-light "Table info" table (console-style). */
+.bq-dt-meta td {
+  border-bottom: none;
+}
+
+.bq-dt-meta tr:nth-child(odd) td {
+  background: var(--jp-layout-color2);
+}
+
+/* Shaded header row for the schema/data tables (console-style). */
+.bq-dt-table thead th {
+  background: var(--jp-layout-color2);
+}
+
+/* Statistics tab: summary line above the profile and the skipped-columns note. */
+.bq-dt-stats-summary {
+  margin-bottom: 8px;
+  color: var(--jp-ui-font-color2);
+}
+
+.bq-dt-stats-skipped {
+  margin-top: 8px;
+  color: var(--jp-ui-font-color2);
+  font-size: var(--jp-ui-font-size0);
+}
+
+.bq-dt-stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bq-dt-stats-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--jp-ui-font-color2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Small "ⓘ" affordance carrying an explanatory tooltip. */
+.bq-dt-info {
+  color: var(--jp-ui-font-color3);
+  cursor: help;
+}
+
+/* Per-column top-value distribution charts (shown when the toggle is on). */
+.bq-dt-topgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.bq-dt-topcard {
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.bq-dt-topcard-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bq-dt-topvals {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bq-dt-topval {
+  display: grid;
+  grid-template-columns: 40% 1fr auto;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--jp-ui-font-size0);
+}
+
+.bq-dt-topval-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--jp-ui-font-color1);
+}
+
+.bq-dt-topval-bar {
+  background: var(--jp-layout-color2);
+  border-radius: 2px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bq-dt-topval-fill {
+  display: block;
+  height: 100%;
+  background: var(--jp-brand-color1);
+}
+
+.bq-dt-topval-count {
+  color: var(--jp-ui-font-color2);
+  text-align: right;
+  min-width: 36px;
 }
 
 .bq-dt-empty,

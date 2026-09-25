@@ -1,6 +1,6 @@
 {
     "name": "bigquery-jupyter-plugin",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "BigQuery JupyterLab Plugin",
     "keywords": [
         "jupyter",
