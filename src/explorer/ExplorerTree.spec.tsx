@@ -10,6 +10,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Clipboard } from '@jupyterlab/apputils';
 import { ExplorerTree } from './ExplorerTree';
 import * as api from './api';
 import { ITableActions } from './TableActions';
@@ -80,6 +81,24 @@ describe('ExplorerTree', () => {
     ).toBeInTheDocument();
   });
 
+  // The header "Open SQL editor" link opens an empty query editor.
+  it('opens a query editor from the "Open SQL editor" header link', async () => {
+    const actions = renderTree();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Open SQL editor/ })
+    );
+    expect(actions.openQuery).toHaveBeenCalledWith('');
+  });
+
+  // The footer "Query history" link opens the query-history panel.
+  it('opens query history from the footer link', async () => {
+    const actions = renderTree();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Query history/ })
+    );
+    expect(actions.openHistory).toHaveBeenCalled();
+  });
+
   // CUJ-3: roots are the default project + bigquery-public-data.
   it('roots the tree at the default project and public data', async () => {
     renderTree();
@@ -125,7 +144,8 @@ describe('ExplorerTree', () => {
     ).not.toBeInTheDocument();
   });
 
-  // CUJ-4: the default (auto-opened) project lists its datasets.
+  // CUJ-4: expanding the default project lists its datasets (projects start
+  // collapsed, so the datasets are nested until the project is expanded).
   it('lists datasets for the default project', async () => {
     mockedApi.listDatasets.mockImplementation((projectId: string) =>
       Promise.resolve({
@@ -135,6 +155,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     expect(await screen.findByText('sales')).toBeInTheDocument();
     expect(mockedApi.listDatasets).toHaveBeenCalledWith('proj-a', undefined);
   });
@@ -147,6 +170,9 @@ describe('ExplorerTree', () => {
         : Promise.resolve({ datasets: [], nextPageToken: null })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     expect(
       await screen.findByText(/404 Not found: Project proj-a/)
     ).toBeInTheDocument();
@@ -190,6 +216,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText(/No datasets/);
     const hint = document.querySelector('.bq-empty-hint') as HTMLElement;
     expect(hint).toBeTruthy();
@@ -219,6 +248,9 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText(/No datasets/);
     const cmd = document.querySelector('.bq-cmd-text') as HTMLElement;
     expect(cmd).toHaveTextContent(`--member="serviceAccount:${sa}"`);
@@ -291,7 +323,10 @@ describe('ExplorerTree', () => {
     });
     renderTree();
 
-    // Drill in: project (auto-open) -> dataset -> table -> record column.
+    // Drill in: project -> dataset -> table -> record column.
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('ds', { selector: '.bq-label' }));
     fireEvent.click(
       await screen.findByText('events', { selector: '.bq-label' })
@@ -326,6 +361,9 @@ describe('ExplorerTree', () => {
       nextPageToken: null
     });
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('sales'));
     expect(await screen.findByText('orders')).toBeInTheDocument();
     expect(
@@ -353,6 +391,9 @@ describe('ExplorerTree', () => {
       nextPageToken: null
     });
     const actions = renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.click(await screen.findByText('sales'));
     fireEvent.contextMenu(await screen.findByText('orders'));
     expect(await screen.findByText('Open details')).toBeInTheDocument();
@@ -369,6 +410,36 @@ describe('ExplorerTree', () => {
     );
   });
 
+  // Clipboard parity with the old plugin: right-click a table -> "Copy
+  // boilerplate query" copies a starter SELECT for the fully-qualified table.
+  it('copies a boilerplate query from the table context menu', async () => {
+    mockedApi.listDatasets.mockImplementation((projectId: string) =>
+      Promise.resolve({
+        datasets:
+          projectId === 'proj-a' ? [{ id: 'sales', projectId: 'proj-a' }] : [],
+        nextPageToken: null
+      })
+    );
+    mockedApi.listTables.mockResolvedValue({
+      tables: [{ id: 'orders', type: 'TABLE' }],
+      nextPageToken: null
+    });
+    const copySpy = jest
+      .spyOn(Clipboard, 'copyToSystem')
+      .mockImplementation(() => undefined);
+    renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
+    fireEvent.click(await screen.findByText('sales'));
+    fireEvent.contextMenu(await screen.findByText('orders'));
+    fireEvent.click(await screen.findByText('Copy boilerplate query'));
+    expect(copySpy).toHaveBeenCalledWith(
+      'SELECT * FROM `proj-a.sales.orders` LIMIT 1000'
+    );
+    copySpy.mockRestore();
+  });
+
   // CUJ-11: a dataset's context menu offers Copy dataset ID / Refresh dataset.
   it('offers dataset context-menu actions', async () => {
     mockedApi.listDatasets.mockImplementation((projectId: string) =>
@@ -379,13 +450,16 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     fireEvent.contextMenu(await screen.findByText('sales'));
     expect(await screen.findByText('Copy dataset ID')).toBeInTheDocument();
     expect(screen.getByText('Refresh dataset')).toBeInTheDocument();
   });
 
-  // CUJ-12: "Refresh all" re-fetches from the backend.
-  it('re-fetches datasets when Refresh all is clicked', async () => {
+  // CUJ-12: the header "Reload" icon re-fetches from the backend.
+  it('re-fetches datasets when Reload is clicked', async () => {
     mockedApi.listDatasets.mockImplementation((projectId: string) =>
       Promise.resolve({
         datasets:
@@ -394,9 +468,12 @@ describe('ExplorerTree', () => {
       })
     );
     renderTree();
+    fireEvent.click(
+      await screen.findByText('proj-a', { selector: '.bq-label' })
+    );
     await screen.findByText('sales');
     const before = mockedApi.listDatasets.mock.calls.length;
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() =>
       expect(mockedApi.listDatasets.mock.calls.length).toBeGreaterThan(before)
     );

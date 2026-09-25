@@ -6,6 +6,10 @@
 }
 
 .bq-explorer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
   padding: 4px 6px;
   font-size: var(--jp-ui-font-size1);
   color: var(--jp-ui-font-color1);
@@ -22,13 +26,45 @@
   font-weight: 600;
 }
 
+.bq-principal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .bq-principal {
+  flex: 1;
+  min-width: 0;
   font-size: var(--jp-ui-font-size0);
   color: var(--jp-ui-font-color2);
-  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Text-and-icon action link, e.g. "Open SQL editor" / "Query history". */
+.bq-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 0;
+  color: var(--jp-content-link-color, #1a73e8);
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* Pinned to the bottom of the explorer via margin-top:auto in the flex column. */
+.bq-footer {
+  margin-top: auto;
+  padding: 6px 2px 2px;
+  border-top: 1px solid var(--jp-border-color2);
 }
 
 .bq-add {
@@ -423,33 +459,52 @@
 }
 
 .bq-dt-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid var(--jp-border-color2);
 }
 
-.bq-dt-title {
-  flex: 1 1 auto;
-  padding: 8px 12px;
+.bq-dt-heading {
+  font-size: var(--jp-ui-font-size2);
+  font-weight: 600;
+  color: var(--jp-ui-font-color1);
+  line-height: 1.2;
   word-break: break-all;
 }
 
-.bq-dt-query-btn {
-  flex: 0 0 auto;
-  margin-right: 12px;
-  padding: 4px 12px;
-  cursor: pointer;
-  color: var(--jp-ui-inverse-font-color1, #fff);
-  background: var(--jp-brand-color1);
-  border: none;
-  border-radius: 3px;
-  font-size: var(--jp-ui-font-size1);
-  white-space: nowrap;
+.bq-dt-fqid {
+  margin-top: 2px;
+  font-family: var(--jp-code-font-family);
+  font-size: var(--jp-ui-font-size0);
+  color: var(--jp-ui-font-color2);
+  word-break: break-all;
 }
 
-.bq-dt-query-btn:hover {
-  background: var(--jp-brand-color0, var(--jp-brand-color1));
+.bq-dt-actions {
+  display: flex;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.bq-dt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--jp-content-link-color, var(--jp-brand-color1));
+  background: none;
+  border: none;
+  font-size: var(--jp-ui-font-size1);
+}
+
+.bq-dt-action:hover {
+  text-decoration: underline;
+}
+
+.bq-dt-action-icon {
+  width: 15px;
+  height: 15px;
+  fill: currentcolor;
 }
 
 .bq-dt-tabs {
@@ -502,6 +557,28 @@
   background: var(--jp-layout-color0);
   border: 1px solid var(--jp-border-color2);
   border-radius: 3px;
+}
+
+/* Sections of the combined Details tab: Description / Table info / Schema. */
+.bq-dt-section {
+  margin-bottom: 18px;
+}
+
+.bq-dt-section:last-child {
+  margin-bottom: 0;
+}
+
+.bq-dt-section-title {
+  margin: 0 0 6px;
+  font-size: var(--jp-ui-font-size2);
+  font-weight: 400;
+  color: var(--jp-ui-font-color1);
+}
+
+.bq-dt-description {
+  color: var(--jp-ui-font-color1);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .bq-dt-empty,
