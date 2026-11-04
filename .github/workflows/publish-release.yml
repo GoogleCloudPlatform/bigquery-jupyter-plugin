@@ -1,5 +1,5 @@
 # Step 2 of the Jupyter Releaser flow: publish the draft release prepared by
-# "Step 1: Prep Release".
+# "Step 1: Prep Release" via OSS Exit Gate (bigquery-jupyter-plugin/pypi).
 #
 # Required repo configuration (see RELEASE.md):
 #   - Environment "release" (this job runs in it).
@@ -7,11 +7,10 @@
 #       vars.APP_ID + secrets.APP_PRIVATE_KEY.
 #       (Alternatively, replace the app-token step with secrets.GITHUB_TOKEN if
 #        branch protection permits the bot to push.)
-#   - PyPI auth, one of:
-#       * secrets.PYPI_TOKEN  (token path, matches the current manual release), or
-#       * PyPI Trusted Publishing (OIDC): drop PYPI_TOKEN and rely on the
-#         id-token permission below + a PyPI trusted-publisher configured for
-#         this repo/workflow/environment.
+#   - PyPI publishing is routed through Google's OSS Exit Gate pipeline
+#     (https://us-python.pkg.dev/oss-exit-gate-prod/bigquery-jupyter-plugin--pypi
+#     + gs://oss-exit-gate-prod-projects-bucket/bigquery-jupyter-plugin/pypi/manifests/)
+#     using Workload Identity Federation (WIF).
 #   - secrets.NPM_TOKEN only if also publishing the frontend to npm; for a
 #     PyPI-only release, pass the npm publish step name via "steps_to_skip".
 name: 'Step 2: Publish Release'
@@ -33,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
+      contents: read
       id-token: write
     steps:
       - uses: jupyterlab/maintainer-tools/.github/actions/base-setup@21b1cac622018fd37ec13a1c8081da814e10d94e # v1
@@ -56,16 +56,34 @@ jobs:
           release_url: ${{ github.event.inputs.release_url }}
           steps_to_skip: ${{ github.event.inputs.steps_to_skip }}
 
+      - name: Authenticate to OSS Exit Gate
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
+
+      - name: Stage package in OSS Exit Gate Artifact Registry
+        run: |
+          python -m pip install --upgrade pip keyring twine keyrings.google-artifactregistry-auth
+          python -m twine upload \
+            --repository-url https://us-python.pkg.dev/oss-exit-gate-prod/bigquery-jupyter-plugin--pypi \
+            .jupyter_releaser_checkout/dist/bigquery_jupyter_plugin-*
+
+      - name: Trigger OSS Exit Gate release
+        run: |
+          echo '{"publish_all": true}' > publish_all.json
+          gcloud storage cp publish_all.json \
+            "gs://oss-exit-gate-prod-projects-bucket/bigquery-jupyter-plugin/pypi/manifests/manifest-${{ github.run_id }}-${{ github.run_attempt }}.json"
+
       - name: Finalize Release
         id: finalize-release
         env:
-          # Token path (default). Remove PYPI_TOKEN to use PyPI Trusted Publishing.
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TWINE_REPOSITORY_URL: https://us-python.pkg.dev/oss-exit-gate-prod/bigquery-jupyter-plugin--pypi
         uses: jupyter-server/jupyter_releaser/.github/actions/finalize-release@70e58c50c736ad496cca11fe4f2446033b68b027 # v2
         with:
           token: ${{ steps.app-token.outputs.token }}
           release_url: ${{ steps.populate-release.outputs.release_url }}
+          steps_to_skip: publish_assets
 
       - name: '** Next Step **'
         if: ${{ success() }}
