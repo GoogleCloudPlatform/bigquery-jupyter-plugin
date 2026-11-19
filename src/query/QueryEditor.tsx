@@ -35,6 +35,14 @@ import {
 import { PagerBar, ResultsGrid } from '../common/ResultsView';
 import { dataframeCode } from '../common/dataframe';
 import { BIGQUERY_SQL } from '../common/sqlDialect';
+import {
+  failureReason,
+  IBigQueryJobFields,
+  JobOutcome,
+  recordBigQueryJob,
+  recordFeatureUse,
+  statementKind
+} from '../common/telemetry';
 
 const PAGE_SIZE = 100;
 const POLL_MS = 800;
@@ -137,18 +145,21 @@ export function QueryEditor({
 
   // Return the text to run: the selection if there is one, else the whole doc.
   // Reads the live editor (source of truth) via the abstract CodeEditor API.
-  const getQueryToRun = (): string => {
+  const getQuerySelection = (): { text: string; selection: boolean } => {
     const ed = editorRef.current;
     if (!ed) {
-      return sql;
+      return { text: sql, selection: false };
     }
     const source = ed.model.sharedModel.getSource();
     const sel = ed.getSelection();
     const a = ed.getOffsetAt(sel.start);
     const b = ed.getOffsetAt(sel.end);
     const selected = source.slice(Math.min(a, b), Math.max(a, b));
-    return selected.trim() ? selected : source;
+    return selected.trim()
+      ? { text: selected, selection: true }
+      : { text: source, selection: false };
   };
+  const getQueryToRun = (): string => getQuerySelection().text;
 
   // Live dry-run cost estimate (debounced) as the SQL or project changes.
   useEffect(() => {
@@ -187,8 +198,30 @@ export function QueryEditor({
     setRunning(true);
     setStatus('Submitting…');
     const started = Date.now();
+    const toRun = getQuerySelection();
+    // Usage telemetry: exactly one event per run, however it ends. Until the
+    // job finishes, its statement type comes from the latest poll.
+    let reported = false;
+    let polledStatementType: string | null | undefined;
+    const report = (
+      outcome: JobOutcome,
+      extra: Partial<IBigQueryJobFields> = {}
+    ): void => {
+      if (reported) {
+        return;
+      }
+      reported = true;
+      recordBigQueryJob({
+        surface: 'QUERY_EDITOR',
+        outcome,
+        durationMs: Date.now() - started,
+        ranSelection: toRun.selection,
+        statementKind: statementKind(polledStatementType),
+        ...extra
+      });
+    };
     try {
-      const job = await executeQuery(getQueryToRun(), project || undefined);
+      const job = await executeQuery(toRun.text, project || undefined);
       jobRef.current = {
         jobId: job.jobId,
         projectId: job.projectId,
@@ -197,6 +230,7 @@ export function QueryEditor({
       let res: IQueryResults | null = null;
       for (let i = 0; i < MAX_POLLS; i += 1) {
         if (cancelRef.current) {
+          report('CANCELLED');
           setStatus('Cancelled');
           return;
         }
@@ -207,6 +241,7 @@ export function QueryEditor({
           0,
           pageSize
         );
+        polledStatementType = res.statementType ?? polledStatementType;
         if (res.state === 'DONE') {
           break;
         }
@@ -216,10 +251,12 @@ export function QueryEditor({
         await sleep(POLL_MS);
       }
       if (cancelRef.current) {
+        report('CANCELLED');
         setStatus('Cancelled');
         return;
       }
       if (!res || res.state !== 'DONE') {
+        report('TIMED_OUT');
         throw new Error('Timed out waiting for the query to finish.');
       }
       setColumns(res.schema);
@@ -228,10 +265,28 @@ export function QueryEditor({
       setStats(res.stats ?? null);
       setPage(0);
       setStatus(`Done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+      report('SUCCEEDED', {
+        statementKind: statementKind(
+          res.stats?.statementType ?? polledStatementType
+        ),
+        cacheHit: res.stats?.cacheHit,
+        bytesProcessed: res.stats?.totalBytesProcessed
+      });
     } catch (e) {
       if (!cancelRef.current) {
+        // A job that failed after BigQuery parsed it reports its type.
+        const failedType = (e as { statementType?: unknown } | null)
+          ?.statementType;
+        report('FAILED', {
+          failureReason: failureReason(e),
+          ...(typeof failedType === 'string'
+            ? { statementKind: statementKind(failedType) }
+            : {})
+        });
         setRunError(errorMessage(e));
         setStatus('');
+      } else {
+        report('CANCELLED');
       }
     } finally {
       setRunning(false);
@@ -307,6 +362,7 @@ export function QueryEditor({
       setEstimateError(`Could not format SQL: ${errorMessage(e)}`);
       return;
     }
+    recordFeatureUse('FORMAT_SQL');
     if (formatted === current) {
       return;
     }
@@ -328,6 +384,7 @@ export function QueryEditor({
     }
     Clipboard.copyToSystem(dataframeCode(query, project));
     Notification.success('Copied DataFrame code', { autoClose: 2000 });
+    recordFeatureUse('COPY_DATAFRAME_CODE');
   };
 
   // Keep the keymap handlers pointing at the latest closures without recreating

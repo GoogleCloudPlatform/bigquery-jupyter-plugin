@@ -7,7 +7,7 @@
  * https://developers.google.com/open-source/licenses/bsd
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getTable,
@@ -20,6 +20,11 @@ import {
 } from '../explorer/api';
 import { ITableRef } from '../explorer/TableActions';
 import { PagerBar, ResultsGrid } from '../common/ResultsView';
+import {
+  failureReason,
+  recordBigQueryJob,
+  recordFeatureUse
+} from '../common/telemetry';
 
 const PREVIEW_PAGE_SIZE = 100;
 
@@ -214,6 +219,14 @@ function PreviewTab({ tref }: { tref: ITableRef }): JSX.Element {
       ),
     placeholderData: keepPreviousData
   });
+  // Usage telemetry: one TABLE_PREVIEW per time the preview is shown, not per page.
+  const previewReported = useRef(false);
+  useEffect(() => {
+    if (q.isSuccess && !previewReported.current) {
+      previewReported.current = true;
+      recordFeatureUse('TABLE_PREVIEW');
+    }
+  }, [q.isSuccess]);
 
   if (q.isLoading && !q.data) {
     return <div className="bq-dt-empty">Loading preview…</div>;
@@ -373,14 +386,38 @@ function StatisticsTab({
       tref.tableId,
       showTopValues
     ],
-    queryFn: () =>
-      tableStats(
-        tref.projectId,
-        tref.datasetId,
-        tref.tableId,
-        showTopValues ? TOP_N : 0,
-        billingProject
-      ),
+    queryFn: async () => {
+      const started = Date.now();
+      try {
+        const res = await tableStats(
+          tref.projectId,
+          tref.datasetId,
+          tref.tableId,
+          showTopValues ? TOP_N : 0,
+          billingProject
+        );
+        // No columns means the server skipped the query (nothing to profile).
+        if (res.columns.length > 0) {
+          recordBigQueryJob({
+            surface: 'TABLE_STATS',
+            outcome: 'SUCCEEDED',
+            statementKind: 'SELECT',
+            bytesProcessed: res.bytesProcessed,
+            durationMs: Date.now() - started
+          });
+        }
+        return res;
+      } catch (e) {
+        recordBigQueryJob({
+          surface: 'TABLE_STATS',
+          outcome: 'FAILED',
+          failureReason: failureReason(e),
+          statementKind: 'SELECT',
+          durationMs: Date.now() - started
+        });
+        throw e;
+      }
+    },
     placeholderData: keepPreviousData
   });
   if (q.isLoading && !q.data) {
@@ -576,6 +613,7 @@ export function TableDetails({
             className="bq-dt-action"
             title="Compute per-column statistics (runs a query over the table)"
             onClick={() => {
+              recordFeatureUse('GENERATE_STATS');
               setStatsRequested(true);
               setTab('stats');
             }}

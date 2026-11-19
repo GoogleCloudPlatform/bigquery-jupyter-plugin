@@ -23,6 +23,7 @@ import { ILauncher } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { IStateDB } from '@jupyterlab/statedb';
 import { requestAPI } from './handler';
+import { recordFeatureUse } from './common/telemetry';
 import { ExplorerWidget } from './explorer/ExplorerWidget';
 import { ITableRef } from './explorer/TableActions';
 import { TableDetailsWidget } from './details/TableDetailsWidget';
@@ -165,7 +166,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
     };
 
     const explorer = new ExplorerWidget(settings, {
-      openDetails: openTableDetails,
+      openDetails: ref => {
+        recordFeatureUse('OPEN_DETAILS');
+        openTableDetails(ref);
+      },
       openQuery: openQueryEditor,
       openHistory: openQueryHistory
     });
@@ -233,7 +237,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
       label: 'Query history',
       caption: 'Show recent BigQuery queries',
       icon: historyIcon,
-      execute: () => {
+      execute: args => {
+        // Layout restoration re-runs this command; only count user opens.
+        if (!args.restored) {
+          recordFeatureUse('OPEN_HISTORY');
+        }
         if (historyWidget && !historyWidget.isDisposed) {
           if (historyWidget.isAttached) {
             app.shell.activateById(historyWidget.id);
@@ -286,6 +294,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       });
       void restorer.restore(historyTracker, {
         command: HISTORY_COMMAND,
+        args: () => ({ restored: true }),
         name: () => HISTORY_WIDGET_ID
       });
     }

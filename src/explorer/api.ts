@@ -228,6 +228,8 @@ export interface IQueryResults {
   totalRows: number | null;
   startIndex?: number;
   stats?: IQueryStats | null;
+  // While the job runs: BigQuery's statement type, once it has parsed it.
+  statementType?: string | null;
 }
 
 export function dryRun(query: string, projectId?: string): Promise<IDryRun> {

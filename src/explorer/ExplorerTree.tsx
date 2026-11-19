@@ -40,6 +40,7 @@ import {
   useTableActions
 } from './TableActions';
 import { dataframeCode } from '../common/dataframe';
+import { recordFeatureUse } from '../common/telemetry';
 import {
   addIcon,
   columnIcon,
@@ -81,9 +82,15 @@ function boilerplateQuery(fqId: string): string {
   return `SELECT * FROM \`${fqId}\` LIMIT 1000`;
 }
 
+function copyTableId(fqId: string): void {
+  copyId(fqId);
+  recordFeatureUse('COPY_TABLE_ID');
+}
+
 function copyBoilerplateQuery(fqId: string): void {
   Clipboard.copyToSystem(boilerplateQuery(fqId));
   Notification.success('Copied boilerplate query', { autoClose: 2000 });
+  recordFeatureUse('COPY_SELECT_STATEMENT');
 }
 
 // Copy a pandas-DataFrame snippet for a table's boilerplate query. Uses an empty
@@ -92,6 +99,7 @@ function copyBoilerplateQuery(fqId: string): void {
 function copyDataFrameCode(fqId: string): void {
   Clipboard.copyToSystem(dataframeCode(boilerplateQuery(fqId), ''));
   Notification.success('Copied DataFrame code', { autoClose: 2000 });
+  recordFeatureUse('COPY_DATAFRAME_CODE');
 }
 
 // Build the exact gcloud command that grants the dataset-viewer role, using the
@@ -253,7 +261,7 @@ function TableNode({
               label: 'Copy DataFrame code',
               onClick: () => copyDataFrameCode(fqId)
             },
-            { label: 'Copy table ID', onClick: () => copyId(fqId) }
+            { label: 'Copy table ID', onClick: () => copyTableId(fqId) }
           ])
         }
       >
@@ -725,7 +733,11 @@ function TableSearchSection({
 
   const searchQ = useQuery({
     queryKey: ['searchTables', billingProject, term, roots],
-    queryFn: () => searchTables(billingProject as string, term, roots),
+    queryFn: async () => {
+      const page = await searchTables(billingProject as string, term, roots);
+      recordFeatureUse('SEARCH');
+      return page;
+    },
     enabled: !!billingProject && enabled
   });
 

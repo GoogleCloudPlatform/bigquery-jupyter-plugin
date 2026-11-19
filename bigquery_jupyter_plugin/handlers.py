@@ -22,6 +22,7 @@ from bigquery_jupyter_plugin.services import (
     serviceusage,
     stats,
 )
+from bigquery_jupyter_plugin import telemetry
 
 
 def _clean_error(e):
@@ -46,6 +47,20 @@ def _clean_error(e):
     return msg.strip()
 
 
+def _error_reason(e):
+    """Return the Google API ``errors[0].reason`` (e.g. ``quotaExceeded``), if any.
+
+    Used by the frontend to classify failures; it is a short fixed token from
+    the API, not user text.
+    """
+    errors = getattr(e, "errors", None)
+    if isinstance(errors, (list, tuple)) and errors:
+        first = errors[0]
+        if isinstance(first, dict) and isinstance(first.get("reason"), str):
+            return first["reason"]
+    return None
+
+
 async def _finish_json(handler, fn):
     """Run a blocking service call in an executor and finish with JSON.
 
@@ -61,7 +76,14 @@ async def _finish_json(handler, fn):
             status = 500
         handler.log.exception("BigQuery plugin request failed")
         handler.set_status(status)
-        handler.finish(json.dumps({"error": _clean_error(e)}))
+        payload = {"error": _clean_error(e)}
+        reason = _error_reason(e)
+        if reason:
+            payload["reason"] = reason
+        statement_type = getattr(e, "statement_type", None)
+        if isinstance(statement_type, str):
+            payload["statementType"] = statement_type
+        handler.finish(json.dumps(payload))
 
 
 class HealthCheckHandler(APIHandler):
@@ -304,6 +326,26 @@ class EnableBigqueryHandler(APIHandler):
         await _finish_json(self, lambda: serviceusage.enable_bigquery(project_id))
 
 
+class TelemetryHandler(APIHandler):
+    """Report whether usage telemetry is on, and accept validated events."""
+
+    @tornado.web.authenticated
+    def get(self):
+        self.finish(json.dumps({"enabled": telemetry.is_enabled()}))
+
+    @tornado.web.authenticated
+    def post(self):
+        # Telemetry problems are never surfaced to the UI: always 204.
+        try:
+            body = json.loads(self.request.body or b"{}")
+            event = body.get("event") if isinstance(body, dict) else None
+            telemetry.record(event)
+        except Exception:  # noqa: BLE001
+            self.log.debug("telemetry event dropped")
+        self.set_status(204)
+        self.finish()
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -332,6 +374,7 @@ def setup_handlers(web_app):
         "enableDataplex": EnableDataplexHandler,
         "bigqueryStatus": BigqueryStatusHandler,
         "enableBigquery": EnableBigqueryHandler,
+        "telemetry": TelemetryHandler,
     }
     handlers = [(full_path(name), handler) for name, handler in handlers_map.items()]
     web_app.add_handlers(host_pattern, handlers)

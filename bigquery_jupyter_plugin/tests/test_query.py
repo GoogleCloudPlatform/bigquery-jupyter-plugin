@@ -9,6 +9,7 @@
 import decimal
 from unittest import mock
 
+import pytest
 from google.cloud import bigquery
 
 from bigquery_jupyter_plugin.services import query
@@ -169,6 +170,31 @@ def test_get_query_results_running_has_no_stats():
         out = query.get_query_results("job123", "proj", "US")
 
     assert "stats" not in out
+
+
+def test_get_query_results_running_reports_statement_type():
+    job = _FakeJob(state="RUNNING", statement_type="UPDATE")
+    client = mock.MagicMock()
+    client.get_job.return_value = job
+    with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
+        out = query.get_query_results("job123", "proj", "US")
+
+    assert out["statementType"] == "UPDATE"
+
+
+def test_get_query_results_failed_job_carries_statement_type():
+    """A job that failed after parsing lets the error report its statement type."""
+    job = mock.MagicMock()
+    job.state = "DONE"
+    job.statement_type = "DELETE"
+    job.result.side_effect = ValueError("Access Denied")
+    client = mock.MagicMock()
+    client.get_job.return_value = job
+    with mock.patch.object(query._bq_client, "get_bq_client", return_value=client):
+        with pytest.raises(ValueError) as excinfo:
+            query.get_query_results("job123", "proj", "US", 0, 100)
+
+    assert excinfo.value.statement_type == "DELETE"
 
 
 def test_get_query_results_random_access_page():
