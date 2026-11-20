@@ -108,6 +108,7 @@ def get_query_results(
     """
     client = _bq_client.get_bq_client(project=project_id)
     job = client.get_job(job_id, project=project_id or None, location=location or None)
+    statement_type = getattr(job, "statement_type", None)
     if job.state != "DONE":
         return {
             "state": job.state,
@@ -115,13 +116,19 @@ def get_query_results(
             "rows": [],
             "totalRows": None,
             "startIndex": start_index,
+            "statementType": statement_type,
         }
     if start_index:
         row_iter = client.list_rows(
             job.destination, start_index=start_index, max_results=max_results
         )
     else:
-        row_iter = job.result(page_size=max_results)
+        try:
+            row_iter = job.result(page_size=max_results)
+        except Exception as e:
+            # Lets the error response report what kind of statement failed.
+            e.statement_type = statement_type
+            raise
     rows, schema, total_rows, _ = _first_page(row_iter)
     return {
         "state": "DONE",
