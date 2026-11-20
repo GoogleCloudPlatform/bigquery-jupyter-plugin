@@ -1,37 +1,93 @@
 # Making a new release of bigquery_jupyter_plugin
 
-The extension can be published to `PyPI` manually.
+The extension is published to PyPI through Google's OSS Exit Gate. Releases are
+staged in the Exit Gate's Artifact Registry repository, and the Exit Gate
+publishes them to PyPI.
+
+> **Don't upload to PyPI directly.** A version that doesn't come through the
+> Exit Gate is flagged as an unauthorized ("bypass") release and alerts the
+> owning team. Direct uploads are for emergencies only, such as a critical
+> security fix when the Exit Gate is down.
+
+There are two ways to release:
+
+- **Automated** (recommended): run the Jupyter Releaser workflows in GitHub
+  Actions. Needs the one-time setup below.
+- **Manual**: build locally and stage the release yourself. Only accounts listed
+  as builders in the project's Exit Gate configuration can do this.
+
+## Automated releases with the Jupyter Releaser
+
+This repo is set up for the [Jupyter Releaser](https://jupyter-releaser.readthedocs.io/)
+via three GitHub Actions workflows:
+
+- **Check Release** (`check-release.yml`) — runs on every PR/push to `main`; does a
+  full dry run of the release (build, changelog, links, wheel contents) and uploads
+  the built `dist/` as an artifact. Never publishes.
+- **Step 1: Prep Release** (`prep-release.yml`) — manual. Bumps the version
+  (`hatch version`), regenerates `CHANGELOG.md` from labeled PRs, tags, and opens a
+  **draft** GitHub release.
+- **Step 2: Publish Release** (`publish-release.yml`) — manual. Rebuilds from the tag,
+  stages the wheel and sdist in the Exit Gate's Artifact Registry, triggers the
+  Exit Gate release, then finalizes the GitHub release.
+
+To cut a release: Actions → run **Step 1** (pick the version) → review the draft
+changelog → run **Step 2** (paste the draft release URL).
+
+If Step 2 fails after its "Populate Release" step has already attached the
+built files to the draft release, re-running Step 2 won't rebuild them, and the
+"Stage package" step fails. Finish that release manually (below) instead.
+
+### One-time setup (requires repo admin + PyPI owner)
+
+- **`release` GitHub Environment** — the publish job runs in it.
+- **GitHub App for the release push** — set the `APP_ID` repo _variable_ and the
+  `APP_PRIVATE_KEY` repo _secret_ (an app with `contents: write` to push the
+  version-bump commit/tag past branch protection). Or swap the app-token step in
+  `publish-release.yml` for `secrets.GITHUB_TOKEN` if branch protection permits.
+- **Exit Gate access** — nothing to configure in GitHub. The workflow signs in to
+  Google Cloud with Workload Identity Federation, and the Exit Gate project
+  configuration allows `publish-release.yml` on `main` and on tags to publish.
+  No PyPI token is stored in the repo.
+- **PyPI trusted publisher** — on PyPI, add a Google Cloud
+  [trusted publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/#google-cloud)
+  for `bigquery-jupyter-plugin` with the service account
+  `bigquery-jupyter-plugin-py@oss-exit-gate-prod.iam.gserviceaccount.com`
+  (leave "Subject" blank). The Exit Gate uses it to publish.
+
+The package isn't published to npm.
 
 ## Manual release
 
-### Python package
+### Prerequisites
 
-This extension is distributed as a Python package.
-
-The packaging setup is defined in the `pyproject.toml` file.
-
-## Prerequisites
-
-Install the `hatch` and `twine` tools for packaging and uploading (respectively):
+Install the tools for building and staging:
 
 ```bash
-pip install build twine hatch
+pip install build hatch twine keyring keyrings.google-artifactregistry-auth
 ```
 
-Everytime you manually create a new release, you must bump the version number
-using the `hatch` tool.
+Sign in to Google Cloud with an account that's an Exit Gate builder for this
+project:
 
-By default this will create a tag.
+```bash
+gcloud auth application-default login
+```
 
-See the docs on [hatch-nodejs-version](https://github.com/agoose77/hatch-nodejs-version#semver) for details.
+### Bump the version
+
+Every release needs a new version number, set with `hatch`. See the docs on
+[hatch-nodejs-version](https://github.com/agoose77/hatch-nodejs-version#semver)
+for details.
 
 ```bash
 hatch version <new-version>
 ```
 
-## Packaging
+### Build
 
-Clean up all the development files from your local repo before building the package:
+Clean up all the development files from your local repo before building the
+package:
 
 ```bash
 git clean -dfX
@@ -50,42 +106,37 @@ python -m build
 > toolchain. The sdist contains only source, so installing from it alone would
 > require building the frontend at install time.
 
-Then upload both artifacts to PyPI:
+### Stage the release
+
+Optionally, remove anything left in the staging repository from earlier builds,
+so only this release gets published:
 
 ```bash
-python -m twine upload dist/bigquery_jupyter_plugin-*
+gcloud artifacts packages delete bigquery-jupyter-plugin \
+  --project=oss-exit-gate-prod \
+  --repository=bigquery-jupyter-plugin--pypi \
+  --location=us \
+  --quiet
 ```
 
-## Automated releases with the Jupyter Releaser
+Upload both files to the Exit Gate's Artifact Registry repository:
 
-This repo is set up for the [Jupyter Releaser](https://jupyter-releaser.readthedocs.io/)
-via three GitHub Actions workflows:
+```bash
+python -m twine upload \
+  --repository-url https://us-python.pkg.dev/oss-exit-gate-prod/bigquery-jupyter-plugin--pypi \
+  dist/bigquery_jupyter_plugin-*
+```
 
-- **Check Release** (`check-release.yml`) — runs on every PR/push to `main`; does a
-  full dry run of the release (build, changelog, links, wheel contents) and uploads
-  the built `dist/` as an artifact. Never publishes.
-- **Step 1: Prep Release** (`prep-release.yml`) — manual. Bumps the version
-  (`hatch version`), regenerates `CHANGELOG.md` from labeled PRs, tags, and opens a
-  **draft** GitHub release.
-- **Step 2: Publish Release** (`publish-release.yml`) — manual. Rebuilds from the tag
-  and publishes to PyPI, then finalizes the GitHub release.
+### Trigger the release
 
-To cut a release: Actions → run **Step 1** (pick the version) → review the draft
-changelog → run **Step 2** (paste the draft release URL).
+Write a manifest that publishes everything staged, and upload it. The upload
+starts the release:
 
-### One-time repo/PyPI setup (requires repo admin + PyPI admin)
+```bash
+echo '{"publish_all": true}' > manifest.json
+gcloud storage cp manifest.json \
+  "gs://oss-exit-gate-prod-projects-bucket/bigquery-jupyter-plugin/pypi/manifests/manifest-<new-version>-$(date +%s).json"
+```
 
-- **`release` GitHub Environment** — the publish job runs in it.
-- **GitHub App for the release push** — set the `APP_ID` repo _variable_ and the
-  `APP_PRIVATE_KEY` repo _secret_ (an app with `contents: write` to push the
-  version-bump commit/tag past branch protection). Or swap the app-token step in
-  `publish-release.yml` for `secrets.GITHUB_TOKEN` if branch protection permits.
-- **PyPI auth** — either:
-  - set the `PYPI_TOKEN` repo secret (token path; matches the current manual
-    release under the shared `vertex-ai-workbench-team` account), **or**
-  - configure PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/)
-    for `bigquery_jupyter_plugin` (owner `GoogleCloudPlatform`, repo
-    `bigquery-jupyter-plugin`, workflow `publish-release.yml`, environment
-    `release`) and remove `PYPI_TOKEN` from `publish-release.yml`.
-- **npm (optional)** — only if also publishing the frontend to npm: set `NPM_TOKEN`.
-  For a PyPI-only release, skip the npm publish step via the **steps_to_skip** input.
+The Exit Gate emails the project's notification list when the release starts
+and when it finishes or fails.
