@@ -28,9 +28,9 @@ function events(): any[] {
 
 const TABLE_MARKER = 'MARKER_TABLE_7a1e';
 
-function renderDetails(): void {
+function renderDetails(retry: boolean | number = false): void {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } }
+    defaultOptions: { queries: { retry, retryDelay: 0 } }
   });
   render(
     <QueryClientProvider client={client}>
@@ -145,6 +145,23 @@ describe('TableDetails telemetry', () => {
     expect(JSON.stringify(mockedRequest.mock.calls)).not.toContain(
       TABLE_MARKER
     );
+  });
+
+  it('runs and records a failed statistics query once even when the client retries', async () => {
+    mockedApi.tableStats.mockRejectedValue(
+      Object.assign(new Error('denied'), { response: { status: 403 } })
+    );
+    // Same retry setting as TableDetailsWidget's query client.
+    renderDetails(1);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Generate Statistics' })
+    );
+    await waitFor(() => expect(events()).toHaveLength(2));
+    await new Promise(r => setTimeout(r, 50));
+    expect(mockedApi.tableStats).toHaveBeenCalledTimes(1);
+    expect(
+      events().filter(e => e.bigquery_job?.outcome === 'FAILED')
+    ).toHaveLength(1);
   });
 
   it('records no job when the server skipped the query', async () => {

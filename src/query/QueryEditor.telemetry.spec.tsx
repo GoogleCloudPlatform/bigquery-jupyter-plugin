@@ -234,6 +234,8 @@ describe('QueryEditor telemetry', () => {
     [429, undefined, 'QUOTA_EXCEEDED'],
     [403, 'quotaExceeded', 'QUOTA_EXCEEDED'],
     [403, 'rateLimitExceeded', 'QUOTA_EXCEEDED'],
+    [403, 'responseTooLarge', 'RESPONSE_TOO_LARGE'],
+    [400, 'resourcesExceeded', 'RESOURCES_EXCEEDED'],
     [500, undefined, 'OTHER_FAILURE'],
     [undefined, undefined, 'OTHER_FAILURE']
   ])(

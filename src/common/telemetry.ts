@@ -21,6 +21,11 @@ export type FailureReason =
   | 'NOT_FOUND'
   | 'INVALID_REQUEST'
   | 'QUOTA_EXCEEDED'
+  | 'RESOURCES_EXCEEDED'
+  | 'RESPONSE_TOO_LARGE'
+  | 'BILLING_NOT_ENABLED'
+  | 'POLICY_VIOLATION'
+  | 'BACKEND_ERROR'
   | 'OTHER_FAILURE';
 export type StatementKind =
   'SELECT' | 'DML' | 'DDL' | 'SCRIPT' | 'OTHER_STATEMENT';
@@ -160,9 +165,27 @@ export function statementKind(
   return 'OTHER_STATEMENT';
 }
 
+// BigQuery's error `reason` tokens. The HTTP status alone is misleading: the
+// client library maps e.g. responseTooLarge and billingNotEnabled to 403.
+const REASON_TO_FAILURE: Record<string, FailureReason> = {
+  accessDenied: 'ACCESS_DENIED',
+  notFound: 'NOT_FOUND',
+  invalid: 'INVALID_REQUEST',
+  invalidQuery: 'INVALID_REQUEST',
+  quotaExceeded: 'QUOTA_EXCEEDED',
+  rateLimitExceeded: 'QUOTA_EXCEEDED',
+  resourcesExceeded: 'RESOURCES_EXCEEDED',
+  billingTierLimitExceeded: 'RESOURCES_EXCEEDED',
+  responseTooLarge: 'RESPONSE_TOO_LARGE',
+  billingNotEnabled: 'BILLING_NOT_ENABLED',
+  policyViolation: 'POLICY_VIOLATION',
+  backendError: 'BACKEND_ERROR',
+  internalError: 'BACKEND_ERROR'
+};
+
 /**
- * Classify an error thrown by `requestAPI` from its HTTP status and the API's
- * `reason` token. The error message is never inspected.
+ * Classify an error thrown by `requestAPI`: by the API's `reason` token when
+ * there is one, otherwise by HTTP status. The error message is never inspected.
  */
 export function failureReason(error: unknown): FailureReason {
   const e = error as {
@@ -171,11 +194,12 @@ export function failureReason(error: unknown): FailureReason {
   } | null;
   const reason = e?.reason;
   const status = e?.response?.status;
-  if (
-    reason === 'quotaExceeded' ||
-    reason === 'rateLimitExceeded' ||
-    status === 429
-  ) {
+  if (typeof reason === 'string' && reason) {
+    return Object.prototype.hasOwnProperty.call(REASON_TO_FAILURE, reason)
+      ? REASON_TO_FAILURE[reason]
+      : 'OTHER_FAILURE';
+  }
+  if (status === 429) {
     return 'QUOTA_EXCEEDED';
   }
   if (status === 401 || status === 403) {

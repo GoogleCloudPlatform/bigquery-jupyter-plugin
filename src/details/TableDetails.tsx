@@ -418,6 +418,8 @@ function StatisticsTab({
         throw e;
       }
     },
+    // One click runs one billable query and records one event; don't retry.
+    retry: false,
     placeholderData: keepPreviousData
   });
   if (q.isLoading && !q.data) {

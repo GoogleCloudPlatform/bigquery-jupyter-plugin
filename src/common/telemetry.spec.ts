@@ -210,18 +210,32 @@ describe('failureReason', () => {
     });
 
   it.each([
+    // No reason: classified by HTTP status.
     [400, undefined, 'INVALID_REQUEST'],
     [401, undefined, 'ACCESS_DENIED'],
     [403, undefined, 'ACCESS_DENIED'],
     [404, undefined, 'NOT_FOUND'],
     [429, undefined, 'QUOTA_EXCEEDED'],
-    [403, 'quotaExceeded', 'QUOTA_EXCEEDED'],
-    [403, 'rateLimitExceeded', 'QUOTA_EXCEEDED'],
-    [400, 'quotaExceeded', 'QUOTA_EXCEEDED'],
-    [403, 'accessDenied', 'ACCESS_DENIED'],
     [500, undefined, 'OTHER_FAILURE'],
-    [503, 'backendError', 'OTHER_FAILURE'],
-    [undefined, undefined, 'OTHER_FAILURE']
+    [undefined, undefined, 'OTHER_FAILURE'],
+    // A reason wins over the status the client library chose for it.
+    [403, 'accessDenied', 'ACCESS_DENIED'],
+    [404, 'notFound', 'NOT_FOUND'],
+    [400, 'invalid', 'INVALID_REQUEST'],
+    [400, 'invalidQuery', 'INVALID_REQUEST'],
+    [403, 'quotaExceeded', 'QUOTA_EXCEEDED'],
+    [429, 'rateLimitExceeded', 'QUOTA_EXCEEDED'],
+    [400, 'resourcesExceeded', 'RESOURCES_EXCEEDED'],
+    [400, 'billingTierLimitExceeded', 'RESOURCES_EXCEEDED'],
+    [403, 'responseTooLarge', 'RESPONSE_TOO_LARGE'],
+    [403, 'billingNotEnabled', 'BILLING_NOT_ENABLED'],
+    [403, 'policyViolation', 'POLICY_VIOLATION'],
+    [500, 'backendError', 'BACKEND_ERROR'],
+    [500, 'internalError', 'BACKEND_ERROR'],
+    // An unknown reason is OTHER_FAILURE, not guessed from the status.
+    [403, 'blocked', 'OTHER_FAILURE'],
+    [400, 'tableUnavailable', 'OTHER_FAILURE'],
+    [403, 'toString', 'OTHER_FAILURE']
   ])('status %p reason %p -> %s', (status, reason, expected) => {
     expect(failureReason(err(status, reason))).toBe(expected);
   });

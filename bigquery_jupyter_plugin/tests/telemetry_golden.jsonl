@@ -7,6 +7,11 @@
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"NOT_FOUND","duration_ms":500,"ran_selection":false}}
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"INVALID_REQUEST","duration_ms":500,"ran_selection":false}}
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"QUOTA_EXCEEDED","duration_ms":500,"ran_selection":false}}
+{"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"RESOURCES_EXCEEDED","duration_ms":500,"ran_selection":false}}
+{"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"RESPONSE_TOO_LARGE","duration_ms":500,"ran_selection":false}}
+{"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"BILLING_NOT_ENABLED","duration_ms":500,"ran_selection":false}}
+{"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"POLICY_VIOLATION","duration_ms":500,"ran_selection":false}}
+{"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"BACKEND_ERROR","duration_ms":500,"ran_selection":false}}
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"FAILED","failure_reason":"OTHER_FAILURE","duration_ms":500,"ran_selection":false}}
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"CANCELLED","duration_ms":1800,"ran_selection":false}}
 {"event_time":"2026-11-19T17:02:13.481Z","bigquery_job":{"surface":"QUERY_EDITOR","outcome":"TIMED_OUT","duration_ms":180000,"ran_selection":true}}
