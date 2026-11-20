@@ -40,11 +40,12 @@ built files to the draft release, re-running Step 2 won't rebuild them, and the
 
 ### One-time setup (requires repo admin + PyPI owner)
 
-- **`release` GitHub Environment** — the publish job runs in it.
-- **GitHub App for the release push** — set the `APP_ID` repo _variable_ and the
-  `APP_PRIVATE_KEY` repo _secret_ (an app with `contents: write` to push the
-  version-bump commit/tag past branch protection). Or swap the app-token step in
-  `publish-release.yml` for `secrets.GITHUB_TOKEN` if branch protection permits.
+- **`release` GitHub Environment** — the publish job runs in it. Limit its
+  deployment branches to `main`, the only branch the Exit Gate accepts releases
+  from.
+- **Release push** — nothing to configure. Both steps push with the workflow's
+  `GITHUB_TOKEN`, which works while `main` has no branch protection blocking it.
+  If that changes, push with a GitHub App token instead.
 - **Exit Gate access** — nothing to configure in GitHub. The workflow signs in to
   Google Cloud with Workload Identity Federation, and the Exit Gate project
   configuration allows `publish-release.yml` on `main` and on tags to publish.
