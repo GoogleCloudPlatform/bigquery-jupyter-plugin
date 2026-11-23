@@ -32,6 +32,15 @@ To check if the server extension is enabled:
 jupyter server extension list
 ```
 
+## Usage telemetry
+
+On Vertex AI Workbench instances with usage telemetry turned on, the plugin
+records which features are used (for example formatting SQL or copying a table
+ID) and, for each query it runs, the outcome, duration, bytes processed and
+whether the result came from cache. It never records SQL, project, dataset,
+table or column names, job IDs, error text, search terms, or anything you type.
+On any other machine it records nothing.
+
 ## Contributing
 
 ### Installing from your local repo/branch
