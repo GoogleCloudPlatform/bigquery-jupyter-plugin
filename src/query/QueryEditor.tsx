@@ -198,7 +198,7 @@ export function QueryEditor({
     setRunning(true);
     setStatus('Submitting…');
     const started = Date.now();
-    const toRun = getQuerySelection();
+    const queryToRun = getQuerySelection();
     // Usage telemetry: exactly one event per run, however it ends. Until the
     // job finishes, its statement type comes from the latest poll.
     let reported = false;
@@ -215,13 +215,13 @@ export function QueryEditor({
         surface: 'QUERY_EDITOR',
         outcome,
         durationMs: Date.now() - started,
-        ranSelection: toRun.selection,
+        ranSelection: queryToRun.selection,
         statementKind: statementKind(polledStatementType),
         ...extra
       });
     };
     try {
-      const job = await executeQuery(toRun.text, project || undefined);
+      const job = await executeQuery(queryToRun.text, project || undefined);
       jobRef.current = {
         jobId: job.jobId,
         projectId: job.projectId,

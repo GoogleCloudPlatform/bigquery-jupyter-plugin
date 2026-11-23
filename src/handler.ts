@@ -11,11 +11,12 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
 
 /**
- * A failed extension request. Extends ResponseError (which has the HTTP
- * status on `response`) with the API's short `reason` token, if the server
- * sent one (e.g. `quotaExceeded`).
+ * A ServerConnection.ResponseError (HTTP status on `response`) that also
+ * carries the BigQuery API's error details sent by the server, so callers can
+ * classify a failure without parsing the message.
  */
-export class RequestError extends ServerConnection.ResponseError {
+export class BigQueryResponseError extends ServerConnection.ResponseError {
+  // The API's short reason token, e.g. `quotaExceeded`.
   reason?: string;
   // BigQuery's statement type of a query job that failed, when it parsed it.
   statementType?: string;
@@ -68,7 +69,7 @@ export async function requestAPI<T>(
         statementType = data.statementType;
       }
     }
-    const error = new RequestError(response, message);
+    const error = new BigQueryResponseError(response, message);
     error.reason = reason;
     error.statementType = statementType;
     throw error;
