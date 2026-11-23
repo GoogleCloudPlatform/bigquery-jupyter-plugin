@@ -47,6 +47,11 @@ fields = ["description", "authors", "urls", "keywords"]
 [tool.hatch.build.targets.sdist]
 artifacts = ["bigquery_jupyter_plugin/labextension"]
 exclude = [".github", "binder"]
+# OSS Exit Gate's PyPI publisher rejects core metadata 2.5 (hatchling's default).
+core-metadata-version = "2.4"
+
+[tool.hatch.build.targets.wheel]
+core-metadata-version = "2.4"
 
 [tool.hatch.build.targets.wheel.shared-data]
 "bigquery_jupyter_plugin/labextension" = "share/jupyter/labextensions/bigquery-jupyter-plugin"
